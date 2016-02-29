@@ -1,0 +1,209 @@
+hash: 845f9c2f6bb58528fe00a2c3151491980ecf7643060a48deffc1dc928bd7a6b0
+updated: 2016-02-29T01:45:28.238195308-08:00
+imports:
+- name: bitbucket.org/ww/goautoneg
+  version: 75cd24fc2f2c
+- name: github.com/Azure/azure-sdk-for-go
+  version: 95361a2573b1fa92a00c5fc2707a80308483c6f9
+  subpackages:
+  - arm/resources/resources
+  - arm/authorization
+- name: github.com/Azure/go-autorest
+  version: bebca455f60b24bf6a2459e9e862ff42da86f5e0
+  repo: https://github.com/Azure/go-autorest
+  vcs: git
+  subpackages:
+  - autorest
+  - autorest/azure
+  - autorest/to
+  - autorest/date
+- name: github.com/beorn7/perks
+  version: b965b613227fddccbfffe13eae360ed3fa822f8d
+  subpackages:
+  - quantile
+- name: github.com/blang/semver
+  version: 31b736133b98f26d5e078ec9eb591666edfd091f
+- name: github.com/BurntSushi/toml
+  version: a4eecd407cf4129fc902ece859a0114e4cf1a7f4
+- name: github.com/davecgh/go-spew
+  version: 3e6e67c4dcea3ac2f25fd4731abc0e1deaf36216
+  subpackages:
+  - spew
+- name: github.com/dgrijalva/jwt-go
+  version: f2193411bd642f7db03249fd79d5292c9b34916a
+- name: github.com/docker/docker
+  version: 2b27fe17a1b3fb8472fde96d768fa70996adf201
+  subpackages:
+  - pkg/jsonmessage
+  - pkg/mount
+  - pkg/parsers
+  - pkg/symlink
+  - pkg/term
+  - pkg/timeutils
+  - pkg/units
+- name: github.com/docker/libcontainer
+  version: 5dc7ba0f24332273461e45bc49edcb4d5aa6c44c
+  subpackages:
+  - cgroups/fs
+  - configs
+  - cgroups
+  - system
+- name: github.com/emicklei/go-restful
+  version: 1f9a0ee00ff93717a275e15b30cf7df356255877
+  subpackages:
+  - swagger
+  - log
+- name: github.com/ghodss/yaml
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
+- name: github.com/golang/glog
+  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+- name: github.com/golang/protobuf
+  version: 7f07925444bb51fa4cf9dfe6f7661876f8852275
+  subpackages:
+  - proto
+- name: github.com/google/cadvisor
+  version: a8085bf9276c22f16dbcd7aa56f0d4d0626a0b2e
+  subpackages:
+  - api
+  - cache/memory
+  - collector
+  - container
+  - events
+  - fs
+  - healthz
+  - http
+  - info/v1
+  - info/v2
+  - manager
+  - metrics
+  - pages
+  - storage
+  - summary
+  - utils
+  - validate
+  - version
+- name: github.com/google/gofuzz
+  version: bbcb9da2d746f8bdbd6a936686a0a6067ada0ec5
+- name: github.com/hashicorp/hcl
+  version: 1c284ec98f4b398443cbabb0d9197f7f4cc0077c
+  subpackages:
+  - hcl/ast
+  - hcl/parser
+  - hcl/token
+  - json/parser
+  - hcl/scanner
+  - hcl/strconv
+  - json/scanner
+  - json/token
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/juju/ratelimit
+  version: 772f5c38e468398c4511514f4f6aa9a4185bc0a0
+- name: github.com/kr/pretty
+  version: e6ac2fc51e89a3249e82157fa0bb7a18ef9dd5bb
+- name: github.com/kr/text
+  version: bb797dc4fb8320488f47bf11de07a733d7233e1f
+- name: github.com/magiconair/properties
+  version: 497d0afefddf378f9ffb3c89db6a326985908519
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
+  subpackages:
+  - pbutil
+- name: github.com/mitchellh/mapstructure
+  version: d2dd0262208475919e1a362f675cfc0e7c10e905
+- name: github.com/pborman/uuid
+  version: c55201b036063326c5b1b89ccfe45a184973d073
+- name: github.com/prometheus/client_golang
+  version: 3b78d7a77f51ccbc364d4bc170920153022cfd08
+  subpackages:
+  - prometheus
+- name: github.com/prometheus/client_model
+  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: ef7a9a5fb138aa5d3a19988537606226869a0390
+  subpackages:
+  - expfmt
+  - model
+- name: github.com/prometheus/procfs
+  version: 490cc6eb5fa45bf8a8b7b73c8bc82a8160e8531d
+- name: github.com/Sirupsen/logrus
+  version: 219c8cb75c258c552e999735be6df753ffc7afdc
+  repo: https://github.com/Sirupsen/logrus
+  vcs: git
+- name: github.com/spf13/cast
+  version: ee7b3e0353166ab1f3a605294ac8cd2b77953778
+- name: github.com/spf13/cobra
+  version: 65a708cee0a4424f4e353d031ce440643e312f92
+- name: github.com/spf13/jwalterweatherman
+  version: d00654080cddbd2b082acaa74007cb94a2b40866
+- name: github.com/spf13/pflag
+  version: 7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7
+- name: github.com/spf13/viper
+  version: c975dc1b4eacf4ec7fdbf0873638de5d090ba323
+- name: golang.org/x/crypto
+  version: 5dc8cb4b8a8eb076cbb5a06bc3b8682c15bdbbd3
+  repo: https://github.com/golang/crypto.git
+  vcs: git
+  subpackages:
+  - pkcs12
+  - ssh
+  - curve25519
+- name: golang.org/x/net
+  version: c2528b2dd8352441850638a8bb678c2ad056fd3e
+  subpackages:
+  - context
+  - html
+  - websocket
+- name: golang.org/x/sys
+  version: 7e44b69d78df692ea16df94fd8dfcb01843d7f19
+  subpackages:
+  - unix
+- name: gopkg.in/fsnotify.v1
+  version: 8611c35ab31c1c28aa903d33cf8b6e44a399b09e
+- name: gopkg.in/yaml.v2
+  version: f7716cbe52baa25d2e9b0d0da546fcf909fc16b4
+- name: k8s.io/kubernetes
+  version: a8af33dc07ee08defa2d503f81e7deea32dd1d3b
+  subpackages:
+  - pkg
+  - pkg/client/unversioned
+  - pkg/api
+  - pkg/api/errors
+  - pkg/api/install
+  - pkg/api/latest
+  - pkg/api/meta
+  - pkg/api/unversioned
+  - pkg/api/validation
+  - pkg/apis/extensions
+  - pkg/apis/extensions/install
+  - pkg/client/metrics
+  - pkg/conversion/queryparams
+  - pkg/fields
+  - pkg/labels
+  - pkg/runtime
+  - pkg/util
+  - pkg/util/sets
+  - pkg/util/wait
+  - pkg/version
+  - pkg/watch
+  - pkg/watch/json
+  - pkg/api/resource
+  - pkg/auth/user
+  - pkg/conversion
+  - pkg/types
+  - pkg/util/rand
+  - pkg/util/errors
+  - pkg/util/fielderrors
+  - pkg/api/registered
+  - pkg/api/util
+  - pkg/api/v1
+  - pkg/capabilities
+  - pkg/util/validation
+  - pkg/util/yaml
+  - pkg/apis/extensions/v1beta1
+  - third_party/forked/reflect
+- name: speter.net/go/exp/math/dec/inf
+  version: 42ca6cd68aa922bc3f32f1e056e61b65945d9ad7
+devImports: []

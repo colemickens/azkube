@@ -1,0 +1,8 @@
+testdata/
+azkube
+vendor/*
+_deployments
+deploy-output
+state.json
+clientsecret
+

@@ -1,0 +1,22 @@
+package: azkube
+import:
+- package: github.com/Azure/azure-sdk-for-go
+  subpackages:
+  - arm/resources/resources
+- package: github.com/pborman/uuid
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: github.com/Azure/go-autorest
+  vcs: git
+  repo: https://github.com/Azure/go-autorest
+  version: bebca45
+  subpackages:
+  - autorest
+  - autorest/azure
+- package: github.com/Sirupsen/logrus
+  vcs: git
+  repo: https://github.com/Sirupsen/logrus
+- package: k8s.io/kubernetes
+  version: v1.1.8
+  subpackages:
+  - pkg

@@ -1,0 +1,23 @@
+{
+  "tenantId": { "value": "{{js .TenantID}}" },
+
+  "masterSize":       { "value": "{{js .MasterSize}}"       },
+  "nodeSize":         { "value": "{{js .NodeSize}}"         },
+  "nodeCount":        { "value": {{js .NodeCount}}          },
+  "username":         { "value": "{{js .Username}}"         },
+  "sshPublicKeyData": { "value": "{{js .SshPublicKeyData}}" },
+
+  "servicePrincipalClientId":     { "value": "{{js .ServicePrincipalClientID}}"     },
+  "servicePrincipalClientSecret": { "value": "{{js .ServicePrincipalClientSecret}}" },
+
+  "masterFqdn": { "value": "{{js .MasterFQDN}}" },
+
+  "kubernetesReleaseUrl": { "value": "{{js .KubernetesReleaseURL}}" },
+
+  "caCertificate":        { "value": "{{js .CAKeyPair.CertificatePem}}"       },
+  "caPrivateKey":         { "value": "{{js .CAKeyPair.PrivateKeyPem}}"        },
+  "apiserverCertificate": { "value": "{{js .ApiserverKeyPair.CertificatePem}}"},
+  "apiserverPrivateKey":  { "value": "{{js .ApiserverKeyPair.PrivateKeyPem}}" },
+  "clientCertificate":    { "value": "{{js .ClientKeyPair.CertificatePem}}"   },
+  "clientPrivateKey":     { "value": "{{js .ClientKeyPair.PrivateKeyPem}}"    }
+}

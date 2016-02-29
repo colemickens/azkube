@@ -1,0 +1,26 @@
+{
+  "deploymentName": { "value": "{{js .DeploymentName}}" },
+
+  "tenantId": { "value": "{{js .TenantID}}" },
+
+  "masterSize":       { "value": "{{js .MasterSize}}"       },
+  "nodeSize":         { "value": "{{js .NodeSize}}"         },
+  "nodeCount":        { "value": {{js .NodeCount}}          },
+  "username":         { "value": "{{js .Username}}"         },
+  "sshPublicKeyData": { "value": "{{js .SshPublicKeyData}}" },
+
+  "servicePrincipalClientId":     { "value": "{{js .ServicePrincipalClientID}}"     },
+  "servicePrincipalClientSecret": { "value": "{{js .ServicePrincipalClientSecret}}" },
+
+  "masterFqdn": { "value": "{{js .MasterFQDN}}" },
+
+  "kubernetesReleaseUrl":    { "value": "{{js .KubernetesReleaseURL}}"    },
+  "kubernetesHyperkubeSpec": { "value": "{{js .KubernetesHyperkubeSpec}}" },
+
+  "caCertificate":        { "value": "{{b64 .CAKeyPair.CertificatePem}}"       },
+  "caPrivateKey":         { "value": "{{b64 .CAKeyPair.PrivateKeyPem}}"        },
+  "apiserverCertificate": { "value": "{{b64 .ApiserverKeyPair.CertificatePem}}"},
+  "apiserverPrivateKey":  { "value": "{{b64 .ApiserverKeyPair.PrivateKeyPem}}" },
+  "clientCertificate":    { "value": "{{b64 .ClientKeyPair.CertificatePem}}"   },
+  "clientPrivateKey":     { "value": "{{b64 .ClientKeyPair.PrivateKeyPem}}"    }
+}

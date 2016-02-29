@@ -1,0 +1,150 @@
+#cloud-config
+
+write_files:
+- path: "/etc/kubernetes/azure/auth.json"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    {
+        "tenantId": "{{{tenantID}}}",
+        "subscriptionId": "[[[subscriptionId]]]",
+        "resourceGroup": "[[[resourceGrou{{{kubernetesHyperkubeSpec}}}]",
+        "servicePrincipalClientId": "{{{servicePrincipalClientId}}}",
+        "servicePrincipalClientSecret": "{{{servicePrincipalClientSecret}}}"
+    }
+
+- path: "/etc/kubernetes/certs/ca.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{caCertificate}}}
+
+- path: "/etc/kubernetes/certs/apiserver.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{apiserverCertificate}}}
+
+- path: "/etc/kubernetes/certs/apiserver.key"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{apiserverPrivateKey}}}
+
+- path: "/etc/kubernetes/certs/client.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{clientCertificate}}}
+
+- path: "/etc/kubernetes/certs/client.key"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{clientPrivateKey}}}
+
+- path: "/var/lib/kubelet/kubeconfig"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+    - name: localcluster
+      cluster:
+        certificate-authority: /etc/kubernetes/certs/ca.crt
+    users:
+    - name: client
+      user:
+        client-certificate: /etc/kubernetes/certs/client.crt
+        client-key: /etc/kubernetes/certs/client.key
+    contexts:
+    - context:
+        cluster: localcluster
+        user: client
+      name: localclustercontext
+    current-context: localclustercontext
+
+- path: /etc/kubernetes/manifests/node.yaml
+  permissions: "0644"
+  owner: "root"
+  content: |
+      apiVersion: "v1"
+      kind: "Pod"
+      metadata:
+        name: "k8s-master"
+      spec:
+        hostNetwork: true
+        containers:
+          - name: "kube-proxy"
+            image: "{{{kubernetesHyperkubeSpec}}}"
+            command: 
+              - "/hyperkube"
+              - "proxy"
+              - "--kubeconfig=/var/lib/kubelet/kubeconfig"
+              - "--proxy-mode=iptables"
+              - "--v=2"
+            securityContext:
+              privileged: true
+            volumeMounts:
+              - name: "etc-kubernetes"
+                mountPath: "/etc/kubernetes"
+              - name: "var-lib-kubelet"
+                mountPath: "/var/lib/kubelet"
+        volumes: 
+          - name: "etc-kubernetes"
+            hostPath:
+              path: "/etc/kubernetes"
+          - name: "var-lib-kubelet"
+            hostPath:
+              path: "/var/lib/kubelet"
+
+coreos:
+  flannel:
+    etcd_endpoints: "http://[[[masterPrivateIp]]]:2379"
+  units:
+    - name: "flanneld.service"
+      command: "start"
+    - name: "docker.service"
+      command: "start"
+    - name: "kubelet.service"
+      command: "start"
+      content: |
+        [Unit]
+        Description=Kubelet
+        Requires=docker.service
+        Requires=flanneld.service
+        After=docker.service
+        After=flanneld.service
+
+        [Service]
+        Restart=always
+        ExecStart=/usr/bin/docker run \
+          --net=host \
+          --privileged \
+          -v /sys:/sys:ro \
+          -v /var/run:/var/run:rw \
+          -v /:/rootfs:ro \
+          -v /dev:/dev \
+          -v /var/lib/docker/:/var/lib/docker:ro \
+          -v /etc/kubernetes/:/etc/kubernetes/:rw \
+          -v /var/lib/kubelet/:/var/lib/kubelet:rw \
+            {{{kubernetesHyperkubeSpec}}} \
+              /hyperkube kubelet \
+                --containerized \
+                --api-servers="https://{{{masterFqdn}}}:6443" \
+                --kubeconfig=/var/lib/kubelet/kubeconfig \
+                --address=0.0.0.0 \
+                --allow-privileged=true \
+                --enable-server \
+                --config=/etc/kubernetes/manifests \
+                --cluster-dns=[[[kubeDnsServiceIP]]] \
+                --cluster-domain=cluster.local \
+                --register-node=true \
+                --v=2
+        ExecStop=/usr/bin/docker stop -t 2 kubelet
