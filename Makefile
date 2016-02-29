@@ -25,3 +25,7 @@ docker-push: docker
 
 clean:
 	rm -f azkube
+
+update-ca-certificates:
+	#curl -o ca-certificates.crt http://www.cacert.org/certs/root.crt
+	cp /etc/ssl/certs/ca-certificates.crt .
