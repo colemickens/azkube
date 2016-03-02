@@ -95,7 +95,6 @@ write_files:
               - "--secure-port=6443"
               - "--service-cluster-ip-range=[[[kubeServiceCidr]]]"
               - "--etcd-servers=http://127.0.0.1:4001"
-              - "--cluster-name=kubernetes"
               - "--tls-cert-file=/etc/kubernetes/certs/apiserver.crt"
               - "--tls-private-key-file=/etc/kubernetes/certs/apiserver.key"
               - "--client-ca-file=/etc/kubernetes/certs/ca.crt"
