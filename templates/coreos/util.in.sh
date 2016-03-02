@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # ./util.sh curl api/v1/nodes  # invokes curl with your args trailing the master server prefix
-# ./util.sh kubectl get nodes  # TODO: fix, fails to negotiate version?
+# ./util.sh kubectl get nodes  # invokes kubectl with your args
 # ./util.sh copykey            # copys private key to master
 # ./util.sh ssh                # ssh into the master
 
@@ -24,7 +24,7 @@ cmd_kubectl() {
 		--client-certificate="${DIR}/client.crt" \
 		--client-key="${DIR}/client.key" \
 		--certificate-authority="${DIR}/ca.crt" \
-		--server="https://${MASTERFQDN}:6443/" \
+		--server="https://${MASTERFQDN}:6443" \
 		"${@}"
 }
 
