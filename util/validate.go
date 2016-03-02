@@ -13,6 +13,9 @@ func ValidateDeployment(flavorArgs FlavorArguments) error {
 	remainingRetries := 20
 	for {
 		remainingRetries--
+		if remainingRetries <= 0 {
+			break
+		}
 
 		c, err := getClient(flavorArgs)
 		if err != nil {
