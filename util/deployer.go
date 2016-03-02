@@ -27,8 +27,8 @@ func NewDeployer() (*Deployer, error) {
 	}
 
 	client := &autorest.Client{}
-	//resource := AzureResourceManagerScope
-	resource := AzureActiveDirectoryScope
+	resource := AzureResourceManagerScope
+	//resource := AzureActiveDirectoryScope
 
 	var spt *azure.ServicePrincipalToken
 	switch viper.GetString(rootArgNames.AuthMethod) {
@@ -66,11 +66,11 @@ func NewDeployer() (*Deployer, error) {
 	var resourcesScopeSpt azure.ServicePrincipalToken = *spt
 	var adScopeSpt azure.ServicePrincipalToken = *spt
 
-	//alternativeResource := AzureActiveDirectoryScope
-	alternativeResource := AzureResourceManagerScope
+	alternativeResource := AzureActiveDirectoryScope
+	//alternativeResource := AzureResourceManagerScope
 
-	//err = adScopeSpt.RefreshExchange(alternativeResource)
-	err = resourcesScopeSpt.RefreshExchange(alternativeResource)
+	err = adScopeSpt.RefreshExchange(alternativeResource)
+	//err = resourcesScopeSpt.RefreshExchange(alternativeResource)
 	if err != nil {
 		return nil, err
 	}
