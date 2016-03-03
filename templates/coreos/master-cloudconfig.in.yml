@@ -11,7 +11,7 @@ write_files:
     {
         "tenantId": "{{{tenantID}}}",
         "subscriptionId": "[[[subscriptionId]]]",
-        "resourceGroup": "[[[resourceGrou{{{kubernetesHyperkubeSpec}}}]",
+        "resourceGroup": "[[[resourceGroup]]]",
         "servicePrincipalClientId": "{{{servicePrincipalClientId}}}",
         "servicePrincipalClientSecret": "{{{servicePrincipalClientSecret}}}"
     }
