@@ -61,6 +61,7 @@ write_files:
     - name: localcluster
       cluster:
         certificate-authority: /etc/kubernetes/certs/ca.crt
+        server: https://{{{masterFqdn}}}:6443
     users:
     - name: client
       user:
@@ -91,7 +92,7 @@ write_files:
               - "apiserver"
               - "--address=0.0.0.0"
               - "--allow-privileged"
-              - "--insecure-port=8080"
+              - "--insecure-port=0"
               - "--secure-port=6443"
               - "--service-cluster-ip-range=[[[kubeServiceCidr]]]"
               - "--etcd-servers=http://127.0.0.1:4001"
