@@ -11,15 +11,12 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
-	"github.com/spf13/viper"
 )
 
 const (
 	AzureAdApiVersion = "1.6"
-	AzureAdBaseURL    = "https://graph.windows.net/%s"
 
 	AzureRoleManagementApiVersion = "2015-07-01"
-	AzureManagementBaseURL        = "https://management.azure.com/{tenant-id}"
 
 	AzureAdRoleReferenceTemplate = "/subscriptions/{subscription-id}/providers/Microsoft.Authorization/roleDefinitions/{role-definition-id}"
 	AzureAdContributorRoleId     = "b24988ac-6180-42a0-ab88-20f7382dd24c"
@@ -65,7 +62,6 @@ type AdServicePrincipal struct {
 
 	ApplicationID  string `json:"appId,omitempty"`
 	AccountEnabled bool   `json:"accountEnabled,omitempty"`
-	// ServicePrincipalNames []string `json:"servicePrincipalNames,omitempty"`
 }
 
 type AdRoleAssignment struct {
@@ -73,7 +69,7 @@ type AdRoleAssignment struct {
 	PrincipalID      string `json:"principalId,omitempty"`
 }
 
-func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrincipalObjectID, servicePrincipalClientSecret string, err error) {
+func (azureClient *AzureClient) CreateApp(appName, appURL string) (applicationID, servicePrincipalObjectID, servicePrincipalClientSecret string, err error) {
 	notBefore := time.Now()
 	notAfter := time.Now().Add(5 * 365 * 24 * time.Hour)
 	notAfter = time.Now().Add(10000 * 24 * time.Hour)
@@ -83,7 +79,7 @@ func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrin
 
 	servicePrincipalClientSecret = uuid.New()
 
-	log.Infof("ad: creating application with name=%q identifierURL=%q", appName, appURL)
+	log.Debugf("ad: creating application with name=%q identifierURL=%q", appName, appURL)
 
 	applicationReq := AdApplication{
 		AvailableToOtherTenants: false,
@@ -102,7 +98,7 @@ func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrin
 
 	q := map[string]interface{}{"api-version": AzureAdApiVersion}
 
-	azureAdURL := fmt.Sprintf(AzureAdBaseURL, a.TenantID)
+	azureAdURL := fmt.Sprintf("%s/%s", azureClient.Environment.GraphEndpoint, azureClient.TenantID)
 
 	req, err := autorest.Prepare(&http.Request{},
 		autorest.AsJSON(),
@@ -116,7 +112,7 @@ func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrin
 		return "", "", "", err
 	}
 
-	resp, err := a.Send(req)
+	resp, err := azureClient.AdClient.Do(req)
 	if err != nil {
 		log.Errorf("ad: failed to send the application creation request")
 		return "", "", "", err
@@ -137,10 +133,9 @@ func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrin
 	servicePrincipalReq := AdServicePrincipal{
 		ApplicationID:  applicationID,
 		AccountEnabled: true,
-		// ServicePrincipalNames: []string{appURL},
 	}
 
-	log.Infof("ad: creating servicePrincipal for applicationID: %q", applicationID)
+	log.Debugf("ad: creating servicePrincipal for applicationID: %q", applicationID)
 
 	req, err = autorest.Prepare(&http.Request{},
 		autorest.AsJSON(),
@@ -154,7 +149,7 @@ func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrin
 		return "", "", "", err
 	}
 
-	resp, err = a.Send(req)
+	resp, err = azureClient.AdClient.Do(req)
 	if err != nil {
 		log.Errorf("ad: failed to send the servicePrincipal creation request")
 		return "", "", "", err
@@ -175,15 +170,15 @@ func (a *AdClient) CreateApp(appName, appURL string) (applicationID, servicePrin
 	return applicationID, servicePrincipalObjectID, servicePrincipalClientSecret, nil
 }
 
-func (d *Deployer) CreateRoleAssignment(resourceGroup string, servicePrincipalObjectID string) error {
+func (azureClient *AzureClient) CreateRoleAssignment(resourceGroup, servicePrincipalObjectID string) error {
 	roleAssignmentName := uuid.New()
 
-	roleDefinitionId := strings.Replace(AzureAdRoleReferenceTemplate, "{subscription-id}", viper.GetString(rootArgNames.SubscriptionID), -1)
+	roleDefinitionId := strings.Replace(AzureAdRoleReferenceTemplate, "{subscription-id}", azureClient.SubscriptionID, -1)
 	roleDefinitionId = strings.Replace(roleDefinitionId, "{role-definition-id}", AzureAdAssignedRoleId, -1)
 
-	scope := fmt.Sprintf("subscriptions/%s/resourceGroups/%s", viper.GetString(rootArgNames.SubscriptionID), resourceGroup)
+	scope := fmt.Sprintf("subscriptions/%s/resourceGroups/%s", azureClient.SubscriptionID, resourceGroup)
 
-	log.Infof("ad: creating role assignment for servicePrincipal (objectId=%q)", servicePrincipalObjectID)
+	log.Debugf("ad: creating role assignment for servicePrincipal (objectId=%q)", servicePrincipalObjectID)
 
 	roleAssignmentParameters := authorization.RoleAssignmentCreateParameters{
 		Properties: &authorization.RoleAssignmentProperties{
@@ -193,23 +188,12 @@ func (d *Deployer) CreateRoleAssignment(resourceGroup string, servicePrincipalOb
 	}
 
 	for {
-		_, err := d.RoleAssignmentsClient.Create(
+		_, err := azureClient.RoleAssignmentsClient.Create(
 			scope,
 			roleAssignmentName,
 			roleAssignmentParameters,
 		)
 		if err != nil {
-			/*
-				TODO: fix when azure-sdk-for-go is regenerated
-				azureErr, ok := err.(*azure.DetailedError)
-				if ok && spMissingMessageRegexp.MatchString(azureErr.ServiceError.Message) {
-					log.Warnf("failed to create role assignment (will retry): %q", err)
-					continue
-				} else {
-					log.Errorf("failed to create role assignment: %q", err)
-					return err
-				}
-			*/
 			log.Warnf("ad: failed to create role assignment (will retry): %q", err)
 			time.Sleep(3 * time.Second)
 			continue

@@ -14,7 +14,6 @@
 
   "masterFqdn": { "value": "{{js .MasterFQDN}}" },
 
-  "kubernetesReleaseUrl":    { "value": "{{js .KubernetesReleaseURL}}"    },
   "kubernetesHyperkubeSpec": { "value": "{{js .KubernetesHyperkubeSpec}}" },
 
   "caCertificate":        { "value": "{{b64 .CAKeyPair.CertificatePem}}"       },

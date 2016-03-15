@@ -9,7 +9,11 @@ import (
 	k8s "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
-func ValidateDeployment(flavorArgs FlavorArguments) error {
+const (
+	validationDelay = time.Second * 15
+)
+
+func ValidateKubernetes(flavorArgs FlavorArguments) error {
 	remainingRetries := 20
 	for {
 		remainingRetries--
@@ -17,33 +21,31 @@ func ValidateDeployment(flavorArgs FlavorArguments) error {
 			break
 		}
 
+		log.Infof("validate: attempting cluster validation")
+
 		c, err := getClient(flavorArgs)
 		if err != nil {
 			log.Warnf("validate: failed to get client: %s", err)
-			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		err = validateStatus(flavorArgs, c)
 		if err != nil {
 			log.Warnf("validate: failed to validate components: %s", err)
-			time.Sleep(10 * time.Second)
+			time.Sleep(validationDelay)
 			continue
 		}
 
 		err = validateNodeCount(flavorArgs, c)
 		if err != nil {
 			log.Warnf("validate: failed to validate node count: %s", err)
-			time.Sleep(10 * time.Second)
+			time.Sleep(validationDelay)
 			continue
 		}
-
-		// we're good if we got here
 
 		return nil
 	}
 
-	log.Errorf("validate: cluster validation failed.")
 	return fmt.Errorf("validate: cluster validation failed.")
 }
 
@@ -61,7 +63,7 @@ func getClient(flavorArgs FlavorArguments) (*k8s.Client, error) {
 }
 
 func validateStatus(flavorArgs FlavorArguments, c *k8s.Client) error {
-	log.Infof("validate: status check")
+	log.Debugf("validate: status check")
 
 	statuses := c.ComponentStatuses()
 	statusList, err := statuses.List(nil, nil)
@@ -69,10 +71,10 @@ func validateStatus(flavorArgs FlavorArguments, c *k8s.Client) error {
 		return err
 	}
 
-	log.Infof("validate: got status list")
+	log.Debugf("validate: got status list")
 	for _, status := range statusList.Items {
 		for _, condition := range status.Conditions {
-			log.Infof("validate: status (%q) type=%q status=%q message=%q error=%q", status.Name, condition.Type, condition.Status, condition.Message, condition.Error)
+			log.Debugf("validate: status (%q) type=%q status=%q message=%q error=%q", status.Name, condition.Type, condition.Status, condition.Message, condition.Error)
 			if condition.Type == k8sapi.ComponentHealthy && condition.Status != k8sapi.ConditionTrue {
 				return fmt.Errorf("validate: component not healthy. component=%q status=%q message=%q error=%q", status.Name, condition.Status, condition.Message, condition.Error)
 			}
@@ -83,7 +85,7 @@ func validateStatus(flavorArgs FlavorArguments, c *k8s.Client) error {
 }
 
 func validateNodeCount(flavorArgs FlavorArguments, c *k8s.Client) error {
-	log.Infof("validate: counting nodes")
+	log.Debugf("validate: counting nodes")
 
 	healthyNodeCount := 0
 	nodes := c.Nodes()
@@ -94,7 +96,7 @@ func validateNodeCount(flavorArgs FlavorArguments, c *k8s.Client) error {
 
 	for _, node := range nodeList.Items {
 		for _, condition := range node.Status.Conditions {
-			log.Infof("validate: node (%q) type=%q status=%q message=%q reason=%q", node.Name, condition.Type, condition.Status, condition.Message, condition.Reason)
+			log.Debugf("validate: node (%q) type=%q status=%q message=%q reason=%q", node.Name, condition.Type, condition.Status, condition.Message, condition.Reason)
 			if condition.Type == k8sapi.NodeReady {
 				if condition.Status == k8sapi.ConditionTrue {
 					healthyNodeCount++

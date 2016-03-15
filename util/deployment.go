@@ -1,14 +1,14 @@
 package util
 
 import (
-	"fmt"
-	"time"
+	//	"fmt"
+	//	"time"
 
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	log "github.com/Sirupsen/logrus"
 )
 
-func (d *Deployer) DoDeployment(resourceGroupName, deploymentName string, template map[string]interface{}, parameters map[string]interface{}, waitDeployment bool) (response *resources.DeploymentExtended, err error) {
+func (azureClient *AzureClient) DeployTemplate(resourceGroupName, deploymentName string, template map[string]interface{}, parameters map[string]interface{}) (response *resources.DeploymentExtended, err error) {
 	deployment := resources.Deployment{
 		Properties: &resources.DeploymentProperties{
 			Template:   &template,
@@ -17,56 +17,68 @@ func (d *Deployer) DoDeployment(resourceGroupName, deploymentName string, templa
 		},
 	}
 
-	deploymentResponse, err := d.DeploymentsClient.CreateOrUpdate(
+	log.Infof("Starting ARM Deployment. This will take some time. deployment=%q", deploymentName)
+	_, err = azureClient.DeploymentsClient.CreateOrUpdate(
 		resourceGroupName,
-		resourceGroupName+"-"+deploymentName+"-deploy",
+		deploymentName,
 		deployment)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	log.Infof("Finished ARM Deployment. deployment=%q", deploymentName)
 
-	if waitDeployment {
-		deploymentName := *deploymentResponse.Name
-		response, err = d.WaitDeployment(resourceGroupName, deploymentName)
-		return response, err
-	}
-
-	return &deploymentResponse, err
+	return nil, nil
 }
 
-func (d *Deployer) WaitDeployment(resourceGroup, deploymentName string) (*resources.DeploymentExtended, error) {
-	var err error
-	var response resources.DeploymentExtended
-	var infoUpdateCount int = 0
-	log.Infof("deployment: waiting for completion. deployment=%q", deploymentName)
-	for {
-		time.Sleep(5 * time.Second)
-
-		response, err = d.DeploymentsClient.Get(resourceGroup, deploymentName)
-		if err != nil {
-			return &response, err
-		}
-
-		state := response.Properties.ProvisioningState
-
-		if state == nil || *state == "Accepted" || *state == "Running" {
-			infoUpdateCount++
-			if infoUpdateCount >= 6 {
-				infoUpdateCount = 0
-				log.Infof("deployment: in progress. deployment=%q state=%q", deploymentName, *state)
-			}
-			continue
-		}
-
-		if *state == "Succeeded" {
-			log.Infof("deployment: finished. deployment=%q", deploymentName)
-			return &response, nil
-		} else if *state == "Failed" {
-			return &response, fmt.Errorf("deployment: failed! deployment=%q", deploymentName)
-		} else {
-			return &response, fmt.Errorf("deployment: {unknown state}. deployment=%s", deploymentName, *state)
-		}
+func (azureClient *AzureClient) DeployFlavor(flavor string, flavorArgs FlavorArguments, outputDirectory string) error {
+	masterScript, err := InterpolateArmPlaceholders(flavor, "master-cloudconfig.in.yml")
+	if err != nil {
+		return err
 	}
 
-	return &response, nil
+	nodeScript, err := InterpolateArmPlaceholders(flavor, "node-cloudconfig.in.yml")
+	if err != nil {
+		return err
+	}
+
+	template, err := PopulateTemplateMap(flavor, "cluster-deploy.in.json",
+		struct{ MasterScript, NodeScript string }{masterScript, nodeScript})
+	if err != nil {
+		return err
+	}
+
+	parameters, err := PopulateTemplateMap(flavor, "cluster-parameters.in.json", flavorArgs)
+	if err != nil {
+		return err
+	}
+
+	utilScript, err := PopulateTemplate(flavor, "util.in.sh", flavorArgs)
+	if err != nil {
+		return err
+	}
+
+	err = SaveDeploymentMap(outputDirectory, "cluster-deploy.json", template, 0600)
+	if err != nil {
+		return err
+	}
+	err = SaveDeploymentMap(outputDirectory, "cluster-parameters.json", parameters, 0600)
+	if err != nil {
+		return err
+	}
+
+	err = SaveDeploymentFile(outputDirectory, "util.sh", utilScript, 0700)
+	if err != nil {
+		return err
+	}
+
+	_, err = azureClient.DeployTemplate(
+		flavorArgs.ResourceGroup,
+		flavorArgs.DeploymentName,
+		template,
+		parameters)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

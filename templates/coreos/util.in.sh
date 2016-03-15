@@ -17,8 +17,17 @@ DEPLOYMENTNAME="{{.DeploymentName}}"
 MASTERFQDN="{{.MasterFQDN}}"
 USERNAME="{{.Username}}"
 
+KUBECTL="`which kubectl`"
+dockerized_kubectl="${DIR}/../../../../_output/dockerized/bin/linux/amd64/kubectl"
+if [[ -f "${dockerized_kubectl}" ]]; then
+	KUBECTL="${dockerized_kubectl}"
+	echo "Using _output's kubectl: ${KUBECTL}"
+else
+	echo "Using system's kubectl: ${KUBECTL}"
+fi
+
 cmd_kubectl() {
-	kubectl \
+	${KUBECTL} \
 		--cluster="${DEPLOYMENTNAME}" \
 		--context="${DEPLOYMENTNAME}" \
 		--client-certificate="${DIR}/client.crt" \

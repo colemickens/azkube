@@ -16,21 +16,57 @@ const (
 	PkiKeySize       = 4096
 )
 
-// TODO(colemickens): could surely refactor/dedupe the two functions below, similar to x509's CreateCertificate
-// TODO(Colemickens): potential options, duration, alt subj names, etc
+type PkiKeyCertPair struct {
+	CertificatePem string
+	PrivateKeyPem  string
+}
 
-func CreateKubeCertificates(masterFQDN string, extraFQDNs []string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
-	log.Info("pki: generating certificate authority")
+func CreateSavePki(masterFQDN string, extraFQDNs []string, outputDirectory string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
+	ca, apiserver, client, err := CreatePki(masterFQDN, extraFQDNs)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	err = SaveDeploymentFile(outputDirectory, "ca.key", (*ca).PrivateKeyPem, 0600)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = SaveDeploymentFile(outputDirectory, "ca.crt", (*ca).CertificatePem, 0600)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = SaveDeploymentFile(outputDirectory, "apiserver.key", (*apiserver).PrivateKeyPem, 0600)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = SaveDeploymentFile(outputDirectory, "apiserver.crt", (*apiserver).CertificatePem, 0600)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = SaveDeploymentFile(outputDirectory, "client.key", (*client).PrivateKeyPem, 0600)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = SaveDeploymentFile(outputDirectory, "client.crt", (*client).CertificatePem, 0600)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return ca, apiserver, client, nil
+}
+
+func CreatePki(masterFQDN string, extraFQDNs []string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
+	log.Debug("pki: generating certificate authority")
 	caCertificate, caPrivateKey, err := createCertificate("ca", nil, nil, false, "")
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	log.Info("pki: generating apiserver server certificate")
+	log.Debug("pki: generating apiserver server certificate")
 	apiserverCertificate, apiserverPrivateKey, err := createCertificate("apiserver", caCertificate, caPrivateKey, true, masterFQDN, extraFQDNs...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	log.Info("pki: generating client certificate")
+	log.Debug("pki: generating client certificate")
 	clientCertificate, clientPrivateKey, err := createCertificate("client", caCertificate, caPrivateKey, false, "")
 	if err != nil {
 		return nil, nil, nil, err

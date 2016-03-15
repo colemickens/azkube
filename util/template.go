@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -28,84 +27,16 @@ func b64(s string) string {
 	return base64.URLEncoding.EncodeToString([]byte(s))
 }
 
-func init() {
-	mustRead := func(f string) string {
-		bytes, err := ioutil.ReadFile(f)
-		if err != nil {
-			panic(err)
-		}
-		contents := string(bytes)
-		return contents
-	}
-
-	masterScript = mustRead("templates/coreos/master-cloudconfig.in.yml")
-	nodeScript = mustRead("templates/coreos/node-cloudconfig.in.yml")
-
-	var err error
-
-	myriadTemplate, err =
-		template.New("myriadTemplate").Parse(mustRead("templates/coreos/azdeploy.in.json"))
+func InterpolateArmPlaceholders(flavor, scriptName string) (string, error) {
+	scriptPath := filepath.Join("templates", flavor, scriptName)
+	scriptBytes, err := ioutil.ReadFile(scriptPath)
 	if err != nil {
-		panic(err)
+		return "", nil
 	}
 
-	myriadParametersTemplate, err =
-		template.New("myriadParameters").
-			Funcs(template.FuncMap{"b64": b64}).
-			Parse(mustRead("templates/coreos/parameters.in.json"))
-	if err != nil {
-		panic(err)
-	}
-
-	utilTemplate, err =
-		template.New("util").
-			Parse(mustRead("templates/coreos/util.in.sh"))
-	if err != nil {
-		panic(err)
-	}
-}
-
-func ProduceUtilScript(flavorArgs FlavorArguments) (utilScript string, err error) {
-	log.Info("template: populating util template")
-	buf := bytes.Buffer{}
-
-	err = utilTemplate.Execute(&buf, flavorArgs)
-	if err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
-func ProduceTemplateAndParameters(flavorArgs FlavorArguments) (template, parameters map[string]interface{}, err error) {
-	log.Info("template: preparing master script")
-	masterScript, _ := prepareScript(masterScript)
-
-	log.Info("template: preparing node script")
-	nodeScript, _ := prepareScript(nodeScript)
-
-	log.Info("template: populating myriad parameters")
-	myriadParameters, err := populateTemplate(
-		myriadParametersTemplate,
-		flavorArgs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	log.Info("template: populating myriad template")
-	myriadTemplate, err := populateTemplate(
-		myriadTemplate,
-		struct{ MasterScript, NodeScript string }{masterScript, nodeScript})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return myriadTemplate, myriadParameters, nil
-}
-
-func prepareScript(script string) (string, error) {
+	script := string(scriptBytes)
 	if strings.Contains(script, "'") {
-		panic("NO SINGLE QUOTES") // TODO(colemick): nicer...
+		return "", fmt.Errorf("template: failed to populate due to presence of single quote: %q", scriptPath)
 	}
 
 	script = template.JSEscapeString(script)
@@ -118,19 +49,39 @@ func prepareScript(script string) (string, error) {
 	return script, nil
 }
 
-func populateTemplate(t *template.Template, state interface{}) (template map[string]interface{}, err error) {
-	var myriadBuf bytes.Buffer
-	var myriadMap map[string]interface{}
+func PopulateTemplate(flavor, templateFilename string, state interface{}) (outputString string, err error) {
+	templatePath := filepath.Join("templates", flavor, templateFilename)
 
-	err = t.Execute(&myriadBuf, state)
+	templateBytes, err := ioutil.ReadFile(templatePath)
 	if err != nil {
-		return nil, fmt.Errorf("template: failed to execute template: %q", err)
+		return "", err
 	}
 
-	err = json.Unmarshal(myriadBuf.Bytes(), &myriadMap)
+	t, err := template.
+		New(templatePath).
+		Funcs(template.FuncMap{"b64": b64}).
+		Parse(string(templateBytes))
+
+	var outputBuffer bytes.Buffer
+
+	err = t.Execute(&outputBuffer, state)
+	if err != nil {
+		return "", fmt.Errorf("template: failed to execute template (%q): %q", templatePath, err)
+	}
+
+	return string(outputBuffer.Bytes()), nil
+}
+
+func PopulateTemplateMap(flavor, templateFilename string, state interface{}) (outputMap map[string]interface{}, err error) {
+	outputString, err := PopulateTemplate(flavor, templateFilename, state)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal([]byte(outputString), &outputMap)
 	if err != nil {
 		return nil, fmt.Errorf("template: failed to unmarshal into map: %q", err)
 	}
 
-	return myriadMap, nil
+	return outputMap, nil
 }

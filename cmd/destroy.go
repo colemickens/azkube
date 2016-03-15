@@ -1,67 +1,105 @@
-// +build ignore
-
 package cmd
 
 import (
-	"log"
-	"reflect"
+	"fmt"
 
-	"github.com/colemickens/azkube/util"
+	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const (
-	destroyDeploymentLongDescription = "long desc"
+	destroyLongDescription = "destroy a deployment (and its containing resource group)"
 )
 
-func NewDestroyDeploymentCmd() *cobra.Command {
-	var statePath string
-
-	var destroyDeploymentCmd = &cobra.Command{
-		Use:   "destroy-deployment",
-		Short: "destroy a kubernetes deployment",
-		Long:  destroyDeploymentLongDescription,
-		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("starting destroy-deployment command")
-
-			state := &util.State{}
-			var err error
-			state, err = ReadAndValidateState(
-				statePath,
-				[]reflect.Type{
-					reflect.TypeOf(state.Common),
-					reflect.TypeOf(state.App),
-					reflect.TypeOf(state.Ssh),
-					reflect.TypeOf(state.Pki),
-					reflect.TypeOf(state.Vault),
-					reflect.TypeOf(state.Secrets),
-				},
-				[]reflect.Type{
-					reflect.TypeOf(state.Myriad),
-				},
-			)
-			if err != nil {
-				panic(err)
-			}
-
-			state = RunDestroyDeploymentCmd(state)
-
-			err = WriteState(statePath, state)
-			if err != nil {
-				panic(err)
-			}
-
-			log.Println("finished destroy-deployment command")
-		},
-	}
-
-	destroyDeploymentCmd.Flags().StringVarP(&statePath, "state", "s", "./state.json", "path to load state from, and to persist state into")
-
-	return destroyDeploymentCmd
+type DestroyArguments struct {
+	DeploymentName string
+	ResourceGroup  string
+	SkipConfirm    bool
 }
 
-func RunDestroyDeploymentCmd(stateIn *util.State) (stateOut *util.State) {
-	*stateOut = *stateIn
+func NewDestroyDeploymentCmd() *cobra.Command {
+	var destroyCmd = &cobra.Command{
+		Use:   "destroy",
+		Short: destroyLongDescription,
+		Long:  destroyLongDescription,
+		Run:   runDestroy,
+	}
+	flags := destroyCmd.Flags()
 
-	return stateOut
+	flags.String("deployment-name", "", "deployment name to destroy (required)")
+	flags.String("resource-group", "", "resource group to destroy (derived from --deployment-name if omitted)")
+	flags.Bool("skip-confirm", false, "skip confimration of resource deletion")
+
+	return destroyCmd
+}
+
+func parseDestroyArgs(cmd *cobra.Command, args []string) (RootArguments, DestroyArguments) {
+	rootArgs := parseRootArgs(cmd, args)
+	flags := cmd.Flags()
+
+	viper.BindPFlag("deployment-name", flags.Lookup("deployment-name"))
+	viper.BindPFlag("resource-group", flags.Lookup("resource-group"))
+	viper.BindPFlag("skip-confirm", flags.Lookup("skip-confirm"))
+
+	destroyArgs := DestroyArguments{
+		DeploymentName: viper.GetString("deployment-name"),
+		ResourceGroup:  viper.GetString("resource-group"),
+		SkipConfirm:    viper.GetBool("skip-configm"),
+	}
+
+	if destroyArgs.DeploymentName == "" {
+		log.Fatalf("destroyargs: --deployment-name must be set.")
+	}
+
+	if destroyArgs.ResourceGroup == "" {
+		destroyArgs.ResourceGroup = destroyArgs.DeploymentName
+		log.Warnf("destroyargs: --resource-group is unset. deriving from  be set")
+	}
+
+	if destroyArgs.SkipConfirm {
+		log.Warnf("deployargs: will NOT confirm deletion!")
+	}
+
+	return rootArgs, destroyArgs
+}
+
+func runDestroy(cmd *cobra.Command, args []string) {
+	rootArgs, destroyArgs := parseDestroyArgs(cmd, args)
+
+	azureClient, err := getClient(rootArgs)
+	if err != nil {
+		log.Fatalf("Error occurred while creating the Azure client: %q", err)
+	}
+
+	resources, err := azureClient.ListResources(destroyArgs.ResourceGroup)
+	if err != nil {
+		log.Fatalf("Failed to list resources to destroy: %q", err)
+	}
+
+	for _, resource := range *resources {
+		log.Warnf("Going to delete: %s (%s)", *resource.Name, *resource.Type)
+	}
+
+	if !destroyArgs.SkipConfirm {
+		for {
+			var response string
+			fmt.Printf("Enter 'y' to confirm deletion, or 'n' to abort: ")
+			fmt.Scanln(&response)
+			if response == "y" {
+				break
+			} else if response == "n" {
+				log.Fatalf("Exit due to user abort")
+			} else {
+				log.Warnf("Unexpected choice: %q. Please enter 'y' or 'n'.", response)
+			}
+		}
+	}
+
+	log.Infof("Starting the deletion of resource group. resourceGroup=%q", destroyArgs.ResourceGroup)
+	_, err = azureClient.GroupsClient.Delete(destroyArgs.ResourceGroup)
+	if err != nil {
+		log.Fatalf("Failed to destroy the resource group: %q", err)
+	}
+	log.Infof("Finished the deletion of resource group. resourceGroup=%q", destroyArgs.ResourceGroup)
 }

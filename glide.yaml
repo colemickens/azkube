@@ -9,7 +9,6 @@ import:
 - package: github.com/Azure/go-autorest
   vcs: git
   repo: https://github.com/Azure/go-autorest
-  version: bebca45
   subpackages:
   - autorest
   - autorest/azure

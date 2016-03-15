@@ -72,12 +72,6 @@
 		},
 
 
-		"kubernetesReleaseUrl": {
-			"type": "string",
-			"metadata": {
-				"description": "release url for kubernetes tarball"
-			}
-		},
 		"kubernetesHyperkubeSpec": {
 			"type": "string",
 			"metadata": {

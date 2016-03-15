@@ -1,20 +1,28 @@
 {
 	"$schema": "http://schema.management.azure.com/schemas/2015-01-01-preview/deploymentTemplate.json",
 	"contentVersion": "1.0.0.0",
-	"variables": {
-		"nodeVmssName": "{{.NodeVmssName}}",
-		"nodeCount": "{{.NodeCount}}"
+	"parameters": {
+		"nodeCount": {
+			"type": "int"
+		},
+		"nodeSize": {
+			"type": "string"
+		},
+		"vmscalesetName": {
+			"type": "string"
+		}
 	},
+	"variables": {},
 	"resources": [
 		{
 			"type": "Microsoft.Compute/virtualMachineScaleSets",
 			"apiVersion": "2015-06-15",
-			"name": "[variables('nodeVmssName')]",
+			"name": "[parameters('vmscalesetName')]",
 			"location": "[resourceGroup().location]",
 			"sku": {
-				"name": "Standard_A1",
+				"name": "[parameters('nodeSize')]",
 				"tier": "Standard",
-				"capacity": "[variables('nodeCount')]"
+				"capacity": "[parameters('nodeCount')]"
 			}
 		}
 	]

@@ -7,9 +7,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func (d *Deployer) EnsureResourceGroup(name, location string, waitDeployment bool) (resourceGroup *resources.ResourceGroup, err error) {
-	log.Infof("groups: ensuring resource group %q exists", name)
-	response, err := d.GroupsClient.CreateOrUpdate(name, resources.ResourceGroup{
+func (azureClient *AzureClient) EnsureResourceGroup(name, location string) (resourceGroup *resources.ResourceGroup, err error) {
+	log.Debugf("groups: ensuring resource group %q exists", name)
+	response, err := azureClient.GroupsClient.CreateOrUpdate(name, resources.ResourceGroup{
 		Name:     &name,
 		Location: &location,
 	})
@@ -17,41 +17,31 @@ func (d *Deployer) EnsureResourceGroup(name, location string, waitDeployment boo
 		return &response, err
 	}
 
-	if waitDeployment {
-		return d.WaitResourceGroup(name)
-	}
-
 	return &response, nil
 }
 
-func (d *Deployer) WaitResourceGroup(name string) (resourceGroup *resources.ResourceGroup, err error) {
-	var response resources.ResourceGroup
-	log.Infof("groups: waiting for resource group %q to finish provisioning", name)
+func (azureClient *AzureClient) ListResources(resourceGroup string) (*[]resources.GenericResource, error) {
+	var allResources []resources.GenericResource
+
+	resourceList, err := azureClient.GroupsClient.ListResources(resourceGroup, "", nil)
+	if err != nil {
+		return nil, err
+	}
+	if resourceList.Value == nil {
+		return nil, fmt.Errorf("resource list was nil")
+	}
+	allResources = append(allResources, *resourceList.Value...)
 	for {
-		response, err = d.GroupsClient.Get(name)
+		moreResources, err := azureClient.GroupsClient.ListResourcesNextResults(resourceList)
 		if err != nil {
-			return &response, err
+			return nil, err
+		}
+		if moreResources.Value == nil || len(*moreResources.Value) == 0 {
+			break
 		}
 
-		state := response.Properties.ProvisioningState
-
-		if state == nil {
-			continue
-		}
-
-		if *state == "Succeeded" {
-			log.Infof("groups: resource group %q is provisioned", name)
-			return &response, nil
-		} else if *state == "Failed" {
-			errorMessage := "groups: resource group %q failed to provision (ProvisioningState == 'Failed')"
-			log.Errorf(errorMessage, name)
-			return &response, fmt.Errorf(errorMessage, name)
-		} else {
-			errorMessage := "groups: resource group %q in unknown provision state (ProvisioningState == %q)"
-			log.Errorf(errorMessage, name, *state)
-			return &response, fmt.Errorf(errorMessage, name, *state)
-		}
+		allResources = append(allResources, *moreResources.Value...)
 	}
 
-	return nil, nil
+	return &allResources, nil
 }
