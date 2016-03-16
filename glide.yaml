@@ -6,6 +6,7 @@ import:
 - package: github.com/pborman/uuid
 - package: github.com/spf13/cobra
 - package: github.com/spf13/viper
+- package: github.com/mitchellh/go-homedir
 - package: github.com/Azure/go-autorest
   vcs: git
   repo: https://github.com/Azure/go-autorest

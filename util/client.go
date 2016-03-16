@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
 	log "github.com/Sirupsen/logrus"
+	"github.com/mitchellh/go-homedir"
 )
 
 const (
@@ -60,12 +60,11 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 		ClientID:       AzkubeClientID,
 	}
 
-	u, err := user.Current()
+	home, err := homedir.Dir()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get user home directory to look for cached token.")
 	}
-
-	cachePath := filepath.Join(u.HomeDir, ".azkube", fmt.Sprintf("token-cache-%s.json", tenantID))
+	cachePath := filepath.Join(home, ".azkube", fmt.Sprintf("token-cache-%s.json", tenantID))
 
 	armSpt, err := azureClient.tryLoadToken(cachePath)
 	if err != nil {
