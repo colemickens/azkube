@@ -19,8 +19,6 @@ import (
 
 const (
 	AzkubeClientID = "a87032a7-203c-4bf7-913c-44c50d23409a"
-	//AzureActiveDirectoryScope = "https://graph.windows.net/"
-	//AzureResourceManagerScope = "https://management.core.windows.net/"
 )
 
 var (
@@ -28,9 +26,11 @@ var (
 )
 
 type AzureClient struct {
+	Environment    azure.Environment
+	OAuthConfig    azure.OAuthConfig
 	SubscriptionID string
 	TenantID       string
-	Environment    azure.Environment
+	ClientID       string
 
 	DeploymentsClient     resources.DeploymentsClient
 	GroupsClient          resources.GroupsClient
@@ -46,6 +46,9 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 	if err != nil {
 		return nil, err
 	}
+
+	// try to load the token for the tenantID
+	// validateToken()
 
 	client := &autorest.Client{}
 
@@ -64,7 +67,15 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 	}
 	spt.Token = *deviceToken
 
-	return makeAzureClient(azureEnvironment, subscriptionID, tenantID, spt)
+	azureClient := AzureClient{
+		Environment:    azureEnvironment,
+		OAuthConfig:    *oauthConfig,
+		TenantID:       tenantID,
+		SubscriptionID: subscriptionID,
+		ClientID:       AzkubeClientID,
+	}
+
+	return azureClient.build(spt)
 }
 
 func NewClientWithClientSecret(azureEnvironment azure.Environment, subscriptionID, tenantID, clientID, clientSecret string) (*AzureClient, error) {
@@ -78,7 +89,15 @@ func NewClientWithClientSecret(azureEnvironment azure.Environment, subscriptionI
 		return nil, err
 	}
 
-	return makeAzureClient(azureEnvironment, tenantID, subscriptionID, spt)
+	azureClient := AzureClient{
+		Environment:    azureEnvironment,
+		OAuthConfig:    *oauthConfig,
+		TenantID:       tenantID,
+		SubscriptionID: subscriptionID,
+		ClientID:       clientID,
+	}
+
+	return azureClient.build(spt)
 }
 
 func NewClientWithClientCertificate(azureEnvironment azure.Environment, subscriptionID, tenantID, clientID, certificatePath, privateKeyPath string) (*AzureClient, error) {
@@ -109,38 +128,45 @@ func NewClientWithClientCertificate(azureEnvironment azure.Environment, subscrip
 
 	spt, err := azure.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, certificate, privateKey, azureEnvironment.ServiceManagementEndpoint)
 
-	return makeAzureClient(azureEnvironment, tenantID, subscriptionID, spt)
+	azureClient := AzureClient{
+		Environment:    azureEnvironment,
+		OAuthConfig:    *oauthConfig,
+		TenantID:       tenantID,
+		SubscriptionID: subscriptionID,
+		ClientID:       clientID,
+	}
+
+	return azureClient.build(spt)
 }
 
-func makeAzureClient(azureEnvironment azure.Environment, subscriptionID, tenantID string, armSpt *azure.ServicePrincipalToken) (*AzureClient, error) {
-	adSpt := *armSpt
-
-	err := adSpt.RefreshExchange(azureEnvironment.GraphEndpoint)
+func (azureClient *AzureClient) build(armSpt *azure.ServicePrincipalToken) (*AzureClient, error) {
+	rawToken := armSpt.Token
+	rawToken.Resource = azureClient.Environment.GraphEndpoint
+	adSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.GraphEndpoint, armSpt.Token)
 	if err != nil {
 		return nil, err
 	}
 
-	azureClient := &AzureClient{
-		SubscriptionID: subscriptionID,
-		TenantID:       tenantID,
-		Environment:    azureEnvironment,
-
-		DeploymentsClient:     resources.NewDeploymentsClient(subscriptionID),
-		GroupsClient:          resources.NewGroupsClient(subscriptionID),
-		RoleAssignmentsClient: authorization.NewRoleAssignmentsClient(subscriptionID),
-		ResourcesClient:       resources.NewClient(subscriptionID),
-		ProvidersClient:       resources.NewProvidersClient(subscriptionID),
-		AdClient:              AdClient{Client: autorest.Client{}, TenantID: tenantID},
+	err = adSpt.RefreshExchange(azureClient.Environment.GraphEndpoint)
+	if err != nil {
+		return nil, err
 	}
+
+	azureClient.DeploymentsClient = resources.NewDeploymentsClient(azureClient.SubscriptionID)
+	azureClient.GroupsClient = resources.NewGroupsClient(azureClient.SubscriptionID)
+	azureClient.RoleAssignmentsClient = authorization.NewRoleAssignmentsClient(azureClient.SubscriptionID)
+	azureClient.ResourcesClient = resources.NewClient(azureClient.SubscriptionID)
+	azureClient.ProvidersClient = resources.NewProvidersClient(azureClient.SubscriptionID)
+	azureClient.AdClient = AdClient{Client: autorest.Client{}, TenantID: azureClient.TenantID}
 
 	azureClient.DeploymentsClient.Authorizer = armSpt
 	azureClient.GroupsClient.Authorizer = armSpt
 	azureClient.RoleAssignmentsClient.Authorizer = armSpt
 	azureClient.ResourcesClient.Authorizer = armSpt
 	azureClient.ProvidersClient.Authorizer = armSpt
-	azureClient.AdClient.Authorizer = &adSpt
+	azureClient.AdClient.Authorizer = adSpt
 
-	err = azureClient.ensureProvidersRegistered(subscriptionID)
+	err = azureClient.ensureProvidersRegistered(azureClient.SubscriptionID)
 	if err != nil {
 		return nil, err
 	}
