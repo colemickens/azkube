@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/colemickens/azkube/util"
@@ -77,11 +76,11 @@ func parseRootArgs(cmd *cobra.Command, args []string) RootArguments {
 
 	if rootArgs.AuthMethod == "client_secret" {
 		if rootArgs.ClientID == "" || rootArgs.ClientSecret == "" {
-			log.Fatal("--client-id and --client-secret must be specified when --auth-method=\"client_secret\"")
+			log.Fatal("--client-id and --client-secret must be specified when --auth-method=\"client_secret\".")
 		}
 	} else if rootArgs.AuthMethod == "client_certificate" {
 		if rootArgs.ClientID == "" || rootArgs.CertificatePath == "" || rootArgs.PrivateKeyPath == "" {
-			log.Fatal("--client-id and --certificate-path, and --private-key-path must be specified when --auth-method=\"client_certificate\"")
+			log.Fatal("--client-id and --certificate-path, and --private-key-path must be specified when --auth-method=\"client_certificate\".")
 		}
 	}
 
@@ -107,6 +106,8 @@ func getClient(rootArgs RootArguments) (*util.AzureClient, error) {
 	case "client_certificate":
 		return util.NewClientWithClientCertificate(azureEnvironment, rootArgs.SubscriptionID, tenantID, rootArgs.ClientID, rootArgs.CertificatePath, rootArgs.PrivateKeyPath)
 	default:
-		return nil, fmt.Errorf("Unsupported auth method")
+		log.Fatalf("--auth-method: ERROR: method unsupported. method=%q.", rootArgs.AuthMethod)
 	}
+
+	return nil, nil // unreachable
 }

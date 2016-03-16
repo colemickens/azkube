@@ -54,20 +54,20 @@ func parseScaleArgs(cmd *cobra.Command, args []string) (RootArguments, ScaleArgu
 	}
 
 	if scaleArgs.DeploymentName == "" {
-		log.Errorf("scaleargs: --deployment-name must be set!")
+		log.Errorf("--deployment-name must be set!")
 	}
 
 	if scaleArgs.ResourceGroup == "" {
 		scaleArgs.ResourceGroup = scaleArgs.DeploymentName
-		log.Warnf("scaleargs: --resource-group is unset. (inferring it from --deployment-name: %q)", scaleArgs.ResourceGroup)
+		log.Warnf("--resource-group is unset. deriving it from --deployment-name: %q.", scaleArgs.ResourceGroup)
 	}
 
 	if scaleArgs.NodeCount == -1 {
-		log.Errorf("scaleargs: --node-count must be specified")
+		log.Errorf("--node-count must be specified.")
 	}
 
 	if scaleArgs.NodeSize == "" {
-		log.Errorf("scaleargs: --node-size must be specified")
+		log.Errorf("--node-size must be specified.")
 	}
 
 	return rootArgs, scaleArgs

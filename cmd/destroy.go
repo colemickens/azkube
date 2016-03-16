@@ -49,16 +49,16 @@ func parseDestroyArgs(cmd *cobra.Command, args []string) (RootArguments, Destroy
 	}
 
 	if destroyArgs.DeploymentName == "" {
-		log.Fatalf("destroyargs: --deployment-name must be set.")
+		log.Fatalf("--deployment-name must be set.")
 	}
 
 	if destroyArgs.ResourceGroup == "" {
 		destroyArgs.ResourceGroup = destroyArgs.DeploymentName
-		log.Warnf("destroyargs: --resource-group is unset. deriving from  be set")
+		log.Warnf("--resource-group is unset. deriving it from --deployment-name.")
 	}
 
 	if destroyArgs.SkipConfirm {
-		log.Warnf("deployargs: will NOT confirm deletion!")
+		log.Warnf("--skip-confirm is set. Will NOT confirm deletion!")
 	}
 
 	return rootArgs, destroyArgs

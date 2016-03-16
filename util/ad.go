@@ -194,7 +194,7 @@ func (azureClient *AzureClient) CreateRoleAssignment(resourceGroup, servicePrinc
 			roleAssignmentParameters,
 		)
 		if err != nil {
-			log.Warnf("ad: failed to create role assignment (will retry): %q", err)
+			log.Warnf("Failed to create role assignment (will retry): %q", err)
 			time.Sleep(3 * time.Second)
 			continue
 		}

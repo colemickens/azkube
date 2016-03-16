@@ -8,7 +8,7 @@ import (
 )
 
 func (azureClient *AzureClient) EnsureResourceGroup(name, location string) (resourceGroup *resources.ResourceGroup, err error) {
-	log.Debugf("groups: ensuring resource group %q exists", name)
+	log.Debugf("Ensuring resource group exists. resourcegroup=%q", name)
 	response, err := azureClient.GroupsClient.CreateOrUpdate(name, resources.ResourceGroup{
 		Name:     &name,
 		Location: &location,
@@ -28,7 +28,7 @@ func (azureClient *AzureClient) ListResources(resourceGroup string) (*[]resource
 		return nil, err
 	}
 	if resourceList.Value == nil {
-		return nil, fmt.Errorf("resource list was nil")
+		return nil, fmt.Errorf("Unexpectedly received nil when querying for resources")
 	}
 	allResources = append(allResources, *resourceList.Value...)
 	for {

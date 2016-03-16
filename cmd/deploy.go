@@ -99,37 +99,37 @@ func parseDeployArgs(cmd *cobra.Command, args []string) (RootArguments, DeployAr
 
 	if deployArgs.DeploymentName == "" {
 		deployArgs.DeploymentName = fmt.Sprintf("kube-%s", time.Now().Format("20060102-150405"))
-		log.Warnf("deployargs: --deployment-name is unset, generated a random deployment name: %q", deployArgs.DeploymentName)
+		log.Warnf("--deployment-name is unset. Generated one: %q", deployArgs.DeploymentName)
+	}
+
+	if deployArgs.ResourceGroup == "" {
+		deployArgs.ResourceGroup = deployArgs.DeploymentName
+		log.Warnf("--resource-group is unset. Derived one from --deployment-name: %q", deployArgs.ResourceGroup)
+	}
+
+	if deployArgs.MasterFQDN == "" {
+		deployArgs.MasterFQDN = fmt.Sprintf("%s.%s.cloudapp.azure.com", deployArgs.DeploymentName, deployArgs.Location)
+		log.Warnf("--master-fqdn is unset. Derived one from input: %q.", deployArgs.MasterFQDN)
+	}
+
+	if deployArgs.ServicePrincipalPassthrough == true {
+		if rootArgs.AuthMethod != "client_secret" {
+			log.Fatalf("--service-principal-passthrough is only allowed when --auth-method=client_secret.")
+		}
 	}
 
 	if deployArgs.OutputDirectory == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			log.Fatalf("unable to get working directory for output")
+			log.Fatalf("--output-directory: ERROR: unable to get working directory for output")
 		}
 
 		deployArgs.OutputDirectory = path.Join(wd, "_deployments", deployArgs.DeploymentName)
-		log.Warnf("deployargs: --output-directory is unset, using this location: %q", deployArgs.OutputDirectory)
+		log.Warnf("--output-directory is unset. Using this location: %q.", deployArgs.OutputDirectory)
 
 		err = os.MkdirAll(deployArgs.OutputDirectory, 0700)
 		if err != nil {
-			log.Fatalf("unable to create output directory for deployment: %q", err)
-		}
-	}
-
-	if deployArgs.ResourceGroup == "" {
-		deployArgs.ResourceGroup = deployArgs.DeploymentName
-		log.Warnf("deployargs: --resource-group is unset, derived one from --deployment-name: %q", deployArgs.ResourceGroup)
-	}
-
-	if deployArgs.MasterFQDN == "" {
-		deployArgs.MasterFQDN = fmt.Sprintf("%s.%s.cloudapp.azure.com", deployArgs.DeploymentName, deployArgs.Location)
-		log.Warnf("deployargs: --master-fqdn is unset, derived from input: %q", deployArgs.MasterFQDN)
-	}
-
-	if deployArgs.ServicePrincipalPassthrough == true {
-		if rootArgs.AuthMethod != "client_secret" {
-			log.Fatalf("deployargs: --service-principal-passthrough is only allowed when --auth-method=client_secret")
+			log.Fatalf("--output-directory: unable to create output directory for deployment: %q.", err)
 		}
 	}
 

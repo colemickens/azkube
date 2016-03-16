@@ -10,35 +10,36 @@ import (
 )
 
 const (
-	validationDelay = time.Second * 15
+	validationDelay    = time.Second * 15
+	validationAttempts = 20
 )
 
 func ValidateKubernetes(flavorArgs FlavorArguments) error {
-	remainingRetries := 20
+	remainingRetries := validationAttempts
 	for {
 		remainingRetries--
 		if remainingRetries <= 0 {
 			break
 		}
 
-		log.Infof("validate: attempting cluster validation")
+		log.Infof("Validating Kubernetes cluster.")
 
 		c, err := getClient(flavorArgs)
 		if err != nil {
-			log.Warnf("validate: failed to get client: %s", err)
+			log.Warnf("Failed to get client for validation: %s", err)
 			continue
 		}
 
 		err = validateStatus(flavorArgs, c)
 		if err != nil {
-			log.Warnf("validate: failed to validate components: %s", err)
+			log.Warnf("Failed to validate components: %s", err)
 			time.Sleep(validationDelay)
 			continue
 		}
 
 		err = validateNodeCount(flavorArgs, c)
 		if err != nil {
-			log.Warnf("validate: failed to validate node count: %s", err)
+			log.Warnf("Failed to validate node count: %s", err)
 			time.Sleep(validationDelay)
 			continue
 		}
@@ -46,7 +47,7 @@ func ValidateKubernetes(flavorArgs FlavorArguments) error {
 		return nil
 	}
 
-	return fmt.Errorf("validate: cluster validation failed.")
+	return fmt.Errorf("Failed to validate cluster after %d tries.", validationAttempts)
 }
 
 func getClient(flavorArgs FlavorArguments) (*k8s.Client, error) {

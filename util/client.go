@@ -164,12 +164,11 @@ func NewClientWithClientCertificate(azureEnvironment azure.Environment, subscrip
 
 func tokenCallback(path string) func(t azure.Token) error {
 	return func(token azure.Token) error {
-		log.Debugf("Saving token. path=%q", path)
 		err := azure.SaveToken(path, 0600, token)
 		if err != nil {
 			return err
 		}
-		log.Debugf("Saved token. path=%q", path)
+		log.Debugf("Saved token to cache. path=%q", path)
 		return nil
 	}
 }
