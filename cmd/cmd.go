@@ -85,6 +85,7 @@ func parseRootArgs(cmd *cobra.Command, args []string) RootArguments {
 	}
 
 	if rootArgs.Debug {
+		log.Infof("Enabling Debug logging.")
 		log.SetLevel(log.DebugLevel)
 	}
 

@@ -67,17 +67,22 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 
 	cachePath := filepath.Join(u.HomeDir, ".azkube", fmt.Sprintf("token-cache-%s.json", tenantID))
 
-	spt, err := azureClient.tryLoadToken(cachePath)
+	armSpt, err := azureClient.tryLoadToken(cachePath)
 	if err != nil {
 		return nil, err
 	}
-	if spt != nil {
-		err = spt.Refresh()
+	if armSpt != nil {
+		err = armSpt.Refresh()
 		if err != nil {
 			log.Warnf("Refresh token failed. Will fallback to device auth. %q", err)
 		}
 
-		return azureClient.build(spt)
+		adSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.GraphEndpoint, armSpt.Token)
+		if err != nil {
+			return nil, err
+		}
+
+		return azureClient.build(armSpt, adSpt)
 	}
 
 	client := &autorest.Client{}
@@ -91,23 +96,25 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 	if err != nil {
 		return nil, err
 	}
-	spt, err = azure.NewServicePrincipalTokenFromManualToken(*oauthConfig, AzkubeClientID, azureEnvironment.ServiceManagementEndpoint, *deviceToken, tokenCallback(cachePath))
+
+	armSpt, err = azure.NewServicePrincipalTokenFromManualToken(*oauthConfig, AzkubeClientID, azureEnvironment.ServiceManagementEndpoint, *deviceToken, tokenCallback(cachePath))
+	if err != nil {
+		return nil, err
+	}
+	armSpt.Refresh()
+
+	rawToken := armSpt.Token
+	rawToken.Resource = azureClient.Environment.GraphEndpoint
+	adSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.GraphEndpoint, rawToken)
 	if err != nil {
 		return nil, err
 	}
 
-	spt.Refresh()
-
-	return azureClient.build(spt)
+	return azureClient.build(armSpt, adSpt)
 }
 
 func NewClientWithClientSecret(azureEnvironment azure.Environment, subscriptionID, tenantID, clientID, clientSecret string) (*AzureClient, error) {
 	oauthConfig, err := azureEnvironment.OAuthConfigForTenant(tenantID)
-	if err != nil {
-		return nil, err
-	}
-
-	spt, err := azure.NewServicePrincipalToken(*oauthConfig, clientID, clientSecret, azureEnvironment.ServiceManagementEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -120,13 +127,30 @@ func NewClientWithClientSecret(azureEnvironment azure.Environment, subscriptionI
 		ClientID:       clientID,
 	}
 
-	return azureClient.build(spt)
+	armSpt, err := azure.NewServicePrincipalToken(*oauthConfig, clientID, clientSecret, azureEnvironment.ServiceManagementEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	adSpt, err := azure.NewServicePrincipalToken(*oauthConfig, clientID, clientSecret, azureEnvironment.GraphEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return azureClient.build(armSpt, adSpt)
 }
 
 func NewClientWithClientCertificate(azureEnvironment azure.Environment, subscriptionID, tenantID, clientID, certificatePath, privateKeyPath string) (*AzureClient, error) {
 	oauthConfig, err := azureEnvironment.OAuthConfigForTenant(tenantID)
 	if err != nil {
 		return nil, err
+	}
+
+	azureClient := AzureClient{
+		Environment:    azureEnvironment,
+		OAuthConfig:    *oauthConfig,
+		TenantID:       tenantID,
+		SubscriptionID: subscriptionID,
+		ClientID:       clientID,
 	}
 
 	certificateData, err := ioutil.ReadFile(certificatePath)
@@ -149,17 +173,16 @@ func NewClientWithClientCertificate(azureEnvironment azure.Environment, subscrip
 		return nil, fmt.Errorf("Failed to parse rsa private key: %q", err)
 	}
 
-	spt, err := azure.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, certificate, privateKey, azureEnvironment.ServiceManagementEndpoint)
-
-	azureClient := AzureClient{
-		Environment:    azureEnvironment,
-		OAuthConfig:    *oauthConfig,
-		TenantID:       tenantID,
-		SubscriptionID: subscriptionID,
-		ClientID:       clientID,
+	armSpt, err := azure.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, certificate, privateKey, azureEnvironment.ServiceManagementEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	adSpt, err := azure.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, certificate, privateKey, azureEnvironment.GraphEndpoint)
+	if err != nil {
+		return nil, err
 	}
 
-	return azureClient.build(spt)
+	return azureClient.build(armSpt, adSpt)
 }
 
 func tokenCallback(path string) func(t azure.Token) error {
@@ -188,26 +211,15 @@ func (azureClient *AzureClient) tryLoadToken(cachePath string) (*azure.ServicePr
 		return nil, fmt.Errorf("Failed to load token from file: %v", err)
 	}
 
-	spt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.ServiceManagementEndpoint, *token, tokenCallback(cachePath))
+	armSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.ServiceManagementEndpoint, *token, tokenCallback(cachePath))
 	if err != nil {
 		return nil, fmt.Errorf("Error constructing service principal token: %v", err)
 	}
-	return spt, nil
+	return armSpt, nil
 }
 
-func (azureClient *AzureClient) build(armSpt *azure.ServicePrincipalToken) (*AzureClient, error) {
-	rawToken := armSpt.Token
-	rawToken.Resource = azureClient.Environment.GraphEndpoint
-	adSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.GraphEndpoint, armSpt.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	err = adSpt.RefreshExchange(azureClient.Environment.GraphEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
+func (azureClient *AzureClient) build(armSpt, adSpt *azure.ServicePrincipalToken) (*AzureClient, error) {
+	adSpt.Refresh()
 	azureClient.DeploymentsClient = resources.NewDeploymentsClient(azureClient.SubscriptionID)
 	azureClient.GroupsClient = resources.NewGroupsClient(azureClient.SubscriptionID)
 	azureClient.RoleAssignmentsClient = authorization.NewRoleAssignmentsClient(azureClient.SubscriptionID)
@@ -222,7 +234,7 @@ func (azureClient *AzureClient) build(armSpt *azure.ServicePrincipalToken) (*Azu
 	azureClient.ProvidersClient.Authorizer = armSpt
 	azureClient.AdClient.Authorizer = adSpt
 
-	err = azureClient.ensureProvidersRegistered(azureClient.SubscriptionID)
+	err := azureClient.ensureProvidersRegistered(azureClient.SubscriptionID)
 	if err != nil {
 		return nil, err
 	}
