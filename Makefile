@@ -2,9 +2,10 @@
 
 owner := colemickens
 projectname := azkube
-version := v0.0.1
+version := v0.0.2
 
 imagename := $(owner)/$(projectname):$(version)
+imagelatest := $(owner)/$(projectname):latest
 
 all: build
 
@@ -21,7 +22,9 @@ docker: clean build
 	docker build -t "$(imagename)" .
 
 docker-push: docker
+	docker tag "$(imagename)" "$(imagelatest)"
 	docker push "$(imagename)"
+	docker push "$(imagelatest)"
 
 clean:
 	rm -f azkube
