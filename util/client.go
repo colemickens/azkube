@@ -1,11 +1,16 @@
 package util
 
+// TODO: refactor a bunch of this out of dockermachine and this into a better azure package
+
 import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/arm/authorization"
@@ -47,8 +52,33 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 		return nil, err
 	}
 
-	// try to load the token for the tenantID
-	// validateToken()
+	azureClient := AzureClient{
+		Environment:    azureEnvironment,
+		OAuthConfig:    *oauthConfig,
+		TenantID:       tenantID,
+		SubscriptionID: subscriptionID,
+		ClientID:       AzkubeClientID,
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	cachePath := filepath.Join(u.HomeDir, ".azkube", fmt.Sprintf("token-cache-%s.json", tenantID))
+
+	spt, err := azureClient.tryLoadToken(cachePath)
+	if err != nil {
+		return nil, err
+	}
+	if spt != nil {
+		err = spt.Refresh()
+		if err != nil {
+			log.Warnf("Refresh token failed. Will fallback to device auth. %q", err)
+		}
+
+		return azureClient.build(spt)
+	}
 
 	client := &autorest.Client{}
 
@@ -61,19 +91,12 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 	if err != nil {
 		return nil, err
 	}
-	spt, err := azure.NewServicePrincipalTokenFromManualToken(*oauthConfig, AzkubeClientID, azureEnvironment.ServiceManagementEndpoint, *deviceToken)
+	spt, err = azure.NewServicePrincipalTokenFromManualToken(*oauthConfig, AzkubeClientID, azureEnvironment.ServiceManagementEndpoint, *deviceToken, tokenCallback(cachePath))
 	if err != nil {
 		return nil, err
 	}
-	spt.Token = *deviceToken
 
-	azureClient := AzureClient{
-		Environment:    azureEnvironment,
-		OAuthConfig:    *oauthConfig,
-		TenantID:       tenantID,
-		SubscriptionID: subscriptionID,
-		ClientID:       AzkubeClientID,
-	}
+	spt.Refresh()
 
 	return azureClient.build(spt)
 }
@@ -137,6 +160,40 @@ func NewClientWithClientCertificate(azureEnvironment azure.Environment, subscrip
 	}
 
 	return azureClient.build(spt)
+}
+
+func tokenCallback(path string) func(t azure.Token) error {
+	return func(token azure.Token) error {
+		log.Debugf("Saving token. path=%q", path)
+		err := azure.SaveToken(path, 0600, token)
+		if err != nil {
+			return err
+		}
+		log.Debugf("Saved token. path=%q", path)
+		return nil
+	}
+}
+
+func (azureClient *AzureClient) tryLoadToken(cachePath string) (*azure.ServicePrincipalToken, error) {
+	log.Debugf("Attempting to load token from cache. path=%q", cachePath)
+
+	if _, err := os.Stat(cachePath); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	token, err := azure.LoadToken(cachePath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load token from file: %v", err)
+	}
+
+	spt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.ServiceManagementEndpoint, *token, tokenCallback(cachePath))
+	if err != nil {
+		return nil, fmt.Errorf("Error constructing service principal token: %v", err)
+	}
+	return spt, nil
 }
 
 func (azureClient *AzureClient) build(armSpt *azure.ServicePrincipalToken) (*AzureClient, error) {

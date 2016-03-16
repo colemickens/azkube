@@ -45,7 +45,7 @@ func parseDestroyArgs(cmd *cobra.Command, args []string) (RootArguments, Destroy
 	destroyArgs := DestroyArguments{
 		DeploymentName: viper.GetString("deployment-name"),
 		ResourceGroup:  viper.GetString("resource-group"),
-		SkipConfirm:    viper.GetBool("skip-configm"),
+		SkipConfirm:    viper.GetBool("skip-confirm"),
 	}
 
 	if destroyArgs.DeploymentName == "" {
@@ -81,6 +81,7 @@ func runDestroy(cmd *cobra.Command, args []string) {
 		log.Warnf("Going to delete: %s (%s)", *resource.Name, *resource.Type)
 	}
 
+	log.Warnf("Going to delete a total of: %d item(s)", len(*resources))
 	if !destroyArgs.SkipConfirm {
 		for {
 			var response string
