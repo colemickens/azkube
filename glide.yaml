@@ -9,7 +9,8 @@ import:
 - package: github.com/mitchellh/go-homedir
 - package: github.com/Azure/go-autorest
   vcs: git
-  repo: https://github.com/Azure/go-autorest
+  #repo: https://github.com/Azure/go-autorest
+  repo: https://github.com/colemickens/go-autorest
   subpackages:
   - autorest
   - autorest/azure

@@ -1,5 +1,5 @@
-hash: c493eb1265f2305564c06296b1596615a8eef4b7f79bd69716f2a7d3dfa8afa9
-updated: 2016-03-16T10:46:46.449258548-07:00
+hash: ca118c4f7f50da0e89e1103d8103c05040a2e84a8a8dccaacd4b00f9d303fb9e
+updated: 2016-03-16T11:17:27.429754337-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c
@@ -10,8 +10,8 @@ imports:
   - arm/authorization
   - arm/resources/subscriptions
 - name: github.com/Azure/go-autorest
-  version: c8bdeef20f02ae8a6494040b1a7838692648ec03
-  repo: https://github.com/Azure/go-autorest
+  version: 20db6f0bb1ed98284dd91038ba2e22be15c447bb
+  repo: https://github.com/colemickens/go-autorest
   vcs: git
   subpackages:
   - autorest
