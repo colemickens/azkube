@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # ./util.sh curl api/v1/nodes  # invokes curl with your args trailing the master server prefix
 # ./util.sh kubectl get nodes  # invokes kubectl with your args

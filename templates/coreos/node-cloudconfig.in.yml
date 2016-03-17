@@ -58,6 +58,7 @@ write_files:
     - name: localcluster
       cluster:
         certificate-authority: /etc/kubernetes/certs/ca.crt
+        server: https://{{{masterFqdn}}}:6443
     users:
     - name: client
       user:
