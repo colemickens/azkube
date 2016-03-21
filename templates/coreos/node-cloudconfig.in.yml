@@ -58,7 +58,7 @@ write_files:
     - name: localcluster
       cluster:
         certificate-authority: /etc/kubernetes/certs/ca.crt
-        server: https://{{{masterFqdn}}}:6443
+        server: https://{{{masterPrivateIp}}}:6443
     users:
     - name: client
       user:
@@ -78,7 +78,8 @@ write_files:
       apiVersion: "v1"
       kind: "Pod"
       metadata:
-        name: "k8s-master"
+        name: "k8s-node"
+        namespace: "kube-system"
       spec:
         hostNetwork: true
         containers:
@@ -107,7 +108,7 @@ write_files:
 
 coreos:
   flannel:
-    etcd_endpoints: "http://[[[masterPrivateIp]]]:2379"
+    etcd_endpoints: "http://{{{masterPrivateIp}}}:2379"
   units:
     - name: "flanneld.service"
       command: "start"
@@ -138,7 +139,7 @@ coreos:
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
                 --containerized \
-                --api-servers="https://{{{masterFqdn}}}:6443" \
+                --api-servers="https://{{{masterPrivateIp}}}:6443" \
                 --kubeconfig=/var/lib/kubelet/kubeconfig \
                 --address=0.0.0.0 \
                 --allow-privileged=true \

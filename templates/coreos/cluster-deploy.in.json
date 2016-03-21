@@ -70,6 +70,12 @@
 				"description": "The fully qualified domain name for the master"
 			}
 		},
+		"masterPrivateIp": {
+			"type": "string",
+			"metadata": {
+				"description": "The internal vnet ip to assign to the master"
+			}
+		},
 
 
 		"kubernetesHyperkubeSpec": {
@@ -132,8 +138,6 @@
 		"subnetCidr": "10.0.0.0/8",
 		"vnetRef": "[resourceId('Microsoft.Network/virtualNetworks',variables('vnetName'))]",
 		"subnetRef": "[concat(variables('vnetRef'),'/subnets/',variables('subnetName'))]",
-
-		"masterPrivateIp": "10.0.1.4",
 
 		"kubePodCidr": "10.2.0.0/16",
 		"kubeServiceCidr": "10.3.0.0/16",
@@ -250,7 +254,7 @@
 						"name": "ipconfig1",
 						"properties": {
 							"privateIPAllocationMethod": "Static",
-							"privateIPAddress": "[variables('masterPrivateIp')]",
+							"privateIPAddress": "[parameters('masterPrivateIp')]",
 							"publicIPAddress": {
 								"id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(parameters('deploymentName'), '-pip-master'))]"
 							},

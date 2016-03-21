@@ -61,7 +61,7 @@ write_files:
     - name: localcluster
       cluster:
         certificate-authority: /etc/kubernetes/certs/ca.crt
-        server: https://{{{masterFqdn}}}:6443
+        server: https://{{{masterPrivateIp}}}:6443
     users:
     - name: client
       user:
@@ -82,6 +82,7 @@ write_files:
       kind: "Pod"
       metadata:
         name: "k8s-master"
+        namespace: "kube-system"
       spec:
         hostNetwork: true
         containers:
@@ -157,7 +158,7 @@ write_files:
 
 coreos:
   etcd2:
-    advertise-client-urls: "http://127.0.0.1:2379,http://[[[masterPrivateIp]]]:2379"
+    advertise-client-urls: "http://127.0.0.1:2379,http://{{{masterPrivateIp}}}:2379"
     listen-client-urls: "http://0.0.0.0:2379,http://0.0.0.0:4001"
   units:
     - name: "etcd2.service"
@@ -196,7 +197,7 @@ coreos:
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
                 --containerized \
-                --api-servers="https://{{{masterFqdn}}}:6443" \
+                --api-servers="https://{{{masterPrivateIp}}}:6443" \
                 --kubeconfig=/var/lib/kubelet/kubeconfig \
                 --address=0.0.0.0 \
                 --allow-privileged=true \

@@ -3,6 +3,7 @@ package cmd
 import (
 	"crypto/rsa"
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"time"
@@ -31,6 +32,8 @@ type DeployArguments struct {
 	KubernetesHyperkubeSpec     string
 	Username                    string
 	MasterFQDN                  string
+	MasterPrivateIP             net.IP
+	ClusterDomain               string
 	MasterExtraFQDNs            []string
 	ServicePrincipalPassthrough bool
 	NoCloudProvider             bool
@@ -55,6 +58,8 @@ func NewDeployCmd() *cobra.Command {
 	flags.String("kubernetes-hyperkube-spec", kubernetesHyperkubeSpec, "docker spec for hyperkube container to use")
 	flags.String("username", "kube", "username to virtual machines")
 	flags.String("master-fqdn", "", "fqdn for master (used for PKI). calculated from cloudapp dns for master's public ip")
+	flags.String("master-private-ip", "10.0.1.4", "the internal vnet ip address to use for the master (used as a SAN in the PKI generation)")
+	flags.String("cluster-domain", "cluster.local", "the dns suffix used in the cluster (used as a SAN in the PKI generation)")
 	flags.StringSlice("master-extra-fqdns", []string{}, "comma delimited list of SANs for the master")
 	flags.Bool("service-principal-passthrough", false, "bypass service principal creation and use deployers credentials for cluster's service principal")
 	flags.Bool("no-cloud-provider", false, "skip service principal steps entirely. this suppresses creation of a new service principal and prevents passthrough of client_secret credentials")
@@ -77,9 +82,16 @@ func parseDeployArgs(cmd *cobra.Command, args []string) (RootArguments, DeployAr
 	viper.BindPFlag("kubernetes-hyperkube-spec", flags.Lookup("kubernetes-hyperkube-spec"))
 	viper.BindPFlag("username", flags.Lookup("username"))
 	viper.BindPFlag("master-fqdn", flags.Lookup("master-fqdn"))
+	viper.BindPFlag("master-private-ip", flags.Lookup("master-private-ip"))
+	viper.BindPFlag("cluster-domain", flags.Lookup("cluster-domain"))
 	viper.BindPFlag("master-extra-fqdns", flags.Lookup("master-extra-fqdns"))
 	viper.BindPFlag("service-principal-passthrough", flags.Lookup("service-principal-passthrough"))
 	viper.BindPFlag("no-cloud-provider", flags.Lookup("no-cloud-provider"))
+
+	parsedMasterPrivateIP := net.ParseIP(viper.GetString("master-private-ip"))
+	if parsedMasterPrivateIP == nil {
+		log.Fatalf("Failed to parse --master-private-ip as an ip address")
+	}
 
 	deployArgs := DeployArguments{
 		OutputDirectory:             viper.GetString("output-directory"),
@@ -92,6 +104,8 @@ func parseDeployArgs(cmd *cobra.Command, args []string) (RootArguments, DeployAr
 		KubernetesHyperkubeSpec:     viper.GetString("kubernetes-hyperkube-spec"),
 		Username:                    viper.GetString("username"),
 		MasterFQDN:                  viper.GetString("master-fqdn"),
+		MasterPrivateIP:             parsedMasterPrivateIP,
+		ClusterDomain:               viper.GetString("cluster-domain"),
 		MasterExtraFQDNs:            viper.GetStringSlice("master-extra-fqdns"),
 		ServicePrincipalPassthrough: viper.GetBool("service-principal-passthrough"),
 		NoCloudProvider:             viper.GetBool("no-cloud-provider"),
@@ -159,7 +173,7 @@ func runDeploy(cmd *cobra.Command, args []string) {
 		log.Fatalf("Error occurred while creating SSH assets.")
 	}
 
-	ca, apiserver, client, err := util.CreateSavePki(deployArgs.MasterFQDN, deployArgs.MasterExtraFQDNs, deployArgs.OutputDirectory)
+	ca, apiserver, client, err := util.CreateSavePki(deployArgs.MasterFQDN, deployArgs.MasterExtraFQDNs, deployArgs.ClusterDomain, []net.IP{deployArgs.MasterPrivateIP}, deployArgs.OutputDirectory)
 	if err != nil {
 		log.Fatalf("Error occurred while creating PKI assets.")
 	}
@@ -168,7 +182,7 @@ func runDeploy(cmd *cobra.Command, args []string) {
 
 	err = azureClient.DeployFlavor("coreos", flavorArgs, deployArgs.OutputDirectory)
 	if err != nil {
-		log.Fatalf("Error occurred while performing the deployment.")
+		log.Fatalf("Error occurred while performing the deployment: %q", err)
 	}
 
 	err = util.ValidateKubernetes(flavorArgs)
@@ -226,7 +240,9 @@ func convertDeployArgsToFlavorArgs(deployArgs DeployArguments, tenantID string,
 		ServicePrincipalClientID:     spObjectID,
 		ServicePrincipalClientSecret: spClientSecret,
 
-		MasterFQDN: deployArgs.MasterFQDN,
+		MasterFQDN:      deployArgs.MasterFQDN,
+		MasterPrivateIP: deployArgs.MasterPrivateIP,
+		ClusterDomain:   deployArgs.ClusterDomain,
 
 		CAKeyPair:        ca,
 		ApiserverKeyPair: apiserver,

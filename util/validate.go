@@ -89,6 +89,8 @@ func validateNodeCount(flavorArgs FlavorArguments, c *k8s.Client) error {
 	log.Debugf("validate: counting nodes")
 
 	healthyNodeCount := 0
+	expectedHealthyNodeCount := flavorArgs.NodeCount
+
 	nodes := c.Nodes()
 	nodeList, err := nodes.List(nil, nil)
 	if err != nil {
@@ -109,8 +111,10 @@ func validateNodeCount(flavorArgs FlavorArguments, c *k8s.Client) error {
 		}
 	}
 
-	if healthyNodeCount != flavorArgs.NodeCount {
+	if healthyNodeCount < expectedHealthyNodeCount {
 		return fmt.Errorf("validate: incorrect healthy count. expected=%d actual=%d", flavorArgs.NodeCount, healthyNodeCount)
+	} else if healthyNodeCount > expectedHealthyNodeCount {
+		log.Warnf("validate: incorrect healthy count. expected=%d actual=%d", flavorArgs.NodeCount, healthyNodeCount)
 	}
 
 	return nil

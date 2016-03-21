@@ -5,7 +5,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"math/big"
+	"net"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -21,8 +23,8 @@ type PkiKeyCertPair struct {
 	PrivateKeyPem  string
 }
 
-func CreateSavePki(masterFQDN string, extraFQDNs []string, outputDirectory string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
-	ca, apiserver, client, err := CreatePki(masterFQDN, extraFQDNs)
+func CreateSavePki(masterFQDN string, extraFQDNs []string, clusterDomain string, extraIPs []net.IP, outputDirectory string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
+	ca, apiserver, client, err := CreatePki(masterFQDN, extraFQDNs, extraIPs, clusterDomain)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -55,19 +57,27 @@ func CreateSavePki(masterFQDN string, extraFQDNs []string, outputDirectory strin
 	return ca, apiserver, client, nil
 }
 
-func CreatePki(masterFQDN string, extraFQDNs []string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
+func CreatePki(masterFQDN string, extraFQDNs []string, extraIPs []net.IP, clusterDomain string) (*PkiKeyCertPair, *PkiKeyCertPair, *PkiKeyCertPair, error) {
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes"))
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes.default"))
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes.default.svc"))
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes.default.svc.%s", clusterDomain))
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes.kube-system"))
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes.kube-system.svc"))
+	extraFQDNs = append(extraFQDNs, fmt.Sprintf("kubernetes.kube-system.svc.%s", clusterDomain))
+
 	log.Debug("pki: generating certificate authority")
-	caCertificate, caPrivateKey, err := createCertificate("ca", nil, nil, false, "")
+	caCertificate, caPrivateKey, err := createCertificate("ca", nil, nil, false, "", nil, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	log.Debug("pki: generating apiserver server certificate")
-	apiserverCertificate, apiserverPrivateKey, err := createCertificate("apiserver", caCertificate, caPrivateKey, true, masterFQDN, extraFQDNs...)
+	apiserverCertificate, apiserverPrivateKey, err := createCertificate("apiserver", caCertificate, caPrivateKey, true, masterFQDN, extraFQDNs, extraIPs)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	log.Debug("pki: generating client certificate")
-	clientCertificate, clientPrivateKey, err := createCertificate("client", caCertificate, caPrivateKey, false, "")
+	clientCertificate, clientPrivateKey, err := createCertificate("client", caCertificate, caPrivateKey, false, "", nil, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -77,7 +87,7 @@ func CreatePki(masterFQDN string, extraFQDNs []string) (*PkiKeyCertPair, *PkiKey
 		&PkiKeyCertPair{CertificatePem: string(CertificateToPem(clientCertificate.Raw)), PrivateKeyPem: string(PrivateKeyToPem(clientPrivateKey))}, nil
 }
 
-func createCertificate(commonName string, caCertificate *x509.Certificate, caPrivateKey *rsa.PrivateKey, isServer bool, FQDN string, extraFQDNs ...string) (*x509.Certificate, *rsa.PrivateKey, error) {
+func createCertificate(commonName string, caCertificate *x509.Certificate, caPrivateKey *rsa.PrivateKey, isServer bool, FQDN string, extraFQDNs []string, extraIPs []net.IP) (*x509.Certificate, *rsa.PrivateKey, error) {
 	var err error
 
 	isCA := (caCertificate == nil)
@@ -97,10 +107,10 @@ func createCertificate(commonName string, caCertificate *x509.Certificate, caPri
 		template.KeyUsage |= x509.KeyUsageCertSign
 		template.IsCA = isCA
 	} else if isServer {
-		// TODO; this doesn't go here, but need to unblock
 		extraFQDNs = append(extraFQDNs, FQDN)
 
 		template.DNSNames = extraFQDNs
+		template.IPAddresses = extraIPs
 		template.ExtKeyUsage = append(template.ExtKeyUsage, x509.ExtKeyUsageServerAuth)
 	} else {
 		template.ExtKeyUsage = append(template.ExtKeyUsage, x509.ExtKeyUsageClientAuth)

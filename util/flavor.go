@@ -1,5 +1,9 @@
 package util
 
+import (
+	"net"
+)
+
 type FlavorArguments struct {
 	DeploymentName string
 	ResourceGroup  string
@@ -15,7 +19,9 @@ type FlavorArguments struct {
 	ServicePrincipalClientID     string
 	ServicePrincipalClientSecret string
 
-	MasterFQDN string
+	MasterFQDN      string
+	MasterPrivateIP net.IP
+	ClusterDomain   string
 
 	KubernetesReleaseURL    string
 	KubernetesHyperkubeSpec string

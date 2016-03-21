@@ -13,6 +13,7 @@
   "servicePrincipalClientSecret": { "value": "{{js .ServicePrincipalClientSecret}}" },
 
   "masterFqdn": { "value": "{{js .MasterFQDN}}" },
+  "masterPrivateIp": { "value": "{{js .MasterPrivateIP}}" },
 
   "kubernetesHyperkubeSpec": { "value": "{{js .KubernetesHyperkubeSpec}}" },
 
