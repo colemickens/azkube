@@ -128,14 +128,14 @@ coreos:
         Restart=always
         ExecStart=/usr/bin/docker run \
           --net=host \
+          --pid=host \
           --privileged \
-          -v /sys:/sys:ro \
-          -v /var/run:/var/run:rw \
-          -v /:/rootfs:ro \
-          -v /dev:/dev \
-          -v /var/lib/docker/:/var/lib/docker:ro \
-          -v /etc/kubernetes/:/etc/kubernetes/:rw \
-          -v /var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/:/rootfs:ro \
+          --volume=/sys:/sys:ro \
+          --volume=/var/run:/var/run:rw \
+          --volume=/var/lib/docker/:/var/lib/docker:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/etc/kubernetes/:/etc/kubernetes/:rw \
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
                 --containerized \
@@ -148,5 +148,6 @@ coreos:
                 --cluster-dns=[[[kubeDnsServiceIP]]] \
                 --cluster-domain=cluster.local \
                 --register-node=true \
+                --register-schedulable=true \
                 --v=2
         ExecStop=/usr/bin/docker stop -t 2 kubelet

@@ -18,7 +18,7 @@ const (
 	deployLongDescription = "creates a new kubernetes cluster in Azure"
 
 	kubernetesStableReleaseURL = "https://github.com/kubernetes/kubernetes/releases/download/v1.1.8/kubernetes.tar.gz"
-	kubernetesHyperkubeSpec    = "gcr.io/google_containers/hyperkube:v1.1.8"
+	kubernetesHyperkubeSpec    = "gcr.io/google_containers/hyperkube-amd64:v1.2.0"
 )
 
 type DeployArguments struct {
