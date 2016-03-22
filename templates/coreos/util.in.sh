@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-# ./util.sh curl api/v1/nodes  # invokes curl with your args trailing the master server prefix
 # ./util.sh kubectl get nodes  # invokes kubectl with your args
+# ./util.sh curl api/v1/nodes  # invokes curl with your args trailing the master server prefix
+# ./util.sh configure-kubectl  # reconfigure your users kubeconfig settings to point to this cluster
+# ./util.sh deploy-addons       # deploy addons (ns/kube-system, svc+rc/kube-dashboard, svc+rc/skydns+kube2sky)
 # ./util.sh copykey            # copys private key to master
 # ./util.sh ssh                # ssh into the master
 
@@ -16,6 +18,8 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 DEPLOYMENTNAME="{{.DeploymentName}}"
 MASTERFQDN="{{.MasterFQDN}}"
 USERNAME="{{.Username}}"
+
+AZKUBE_BRANCH="v0.0.4"
 
 KUBECTL="`which kubectl`"
 dockerized_kubectl="${DIR}/../../../../_output/dockerized/bin/linux/amd64/kubectl"
@@ -43,6 +47,19 @@ cmd_curl() {
 		--key "${DIR}/client.key" \
 		--cacert "${DIR}/ca.crt" \
 		https://${MASTERFQDN}:6443/"${@}"
+}
+
+cmd_configure-kubectl() {
+	kubectl config set-cluster "${DEPLOYMENTNAME}" --server="https://${MASTERFQDN}:6443" --certificate-authority="${DIR}/ca.crt"
+	kubectl config set-credentials "${USERNAME}_user" --client-certificate="${DIR}/client.crt" --client-key="${DIR}/client.key"
+	kubectl config set-context "${DEPLOYMENTNAME}" --cluster="${DEPLOYMENTNAME}" --user="${USERNAME}_user"
+	kubectl config use-context "${DEPLOYMENTNAME}"
+}
+
+cmd_deploy-addons() {
+	cmd_kubectl create -f "https://raw.githubusercontent.com/colemickens/azkube/v0.0.4/templates/coreos/addons/kube-system.yaml"
+	cmd_kubectl create -f "https://raw.githubusercontent.com/colemickens/azkube/v0.0.4/templates/coreos/addons/skydns.yaml"
+	cmd_kubectl create -f "https://raw.githubusercontent.com/colemickens/azkube/v0.0.4/templates/coreos/addons/kube-dashboard.yaml"
 }
 
 cmd_copykey() {

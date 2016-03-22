@@ -1,22 +1,22 @@
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: kube-dns-v10
+  name: kube-dns-v11
   namespace: kube-system
   labels:
     k8s-app: kube-dns
-    version: v10
+    version: v11
     kubernetes.io/cluster-service: "true"
 spec:
   replicas: 1
   selector:
     k8s-app: kube-dns
-    version: v10
+    version: v11
   template:
     metadata:
       labels:
         k8s-app: kube-dns
-        version: v10
+        version: v11
         kubernetes.io/cluster-service: "true"
     spec:
       containers:
@@ -54,13 +54,8 @@ spec:
             cpu: 100m
             memory: 50Mi
         args:
-        - --domain=cluster.local
-        - --kubecfg-file=/var/lib/kubelet/kubeconfig
-        volumeMounts:
-        - name: var-lib-kubelet
-          mountPath: /var/lib/kubelet
-        - name: etc-kubernetes
-          mountPath: /etc/kubernetes
+        #- --domain=cluster.local
+        #- --kubecfg-file=/var/lib/kubelet/kubeconfig
       - name: skydns
         image: gcr.io/google_containers/skydns:2015-10-13-8c72f8c
         resources:
@@ -115,12 +110,6 @@ spec:
         - containerPort: 8080
           protocol: TCP
       volumes:
-      - name: var-lib-kubelet
-        hostPath:
-          path: "/var/lib/kubelet"
-      - name: etc-kubernetes
-        hostPath:
-          path: "/etc/kubernetes"
       - name: etcd-storage
         emptyDir: {}
       dnsPolicy: Default  # Don't use cluster DNS.

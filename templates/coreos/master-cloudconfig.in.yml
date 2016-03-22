@@ -114,6 +114,7 @@ write_files:
               - "/hyperkube"
               - "controller-manager"
               - "--kubeconfig=/var/lib/kubelet/kubeconfig"
+              - "--root-ca-file=/etc/kubernetes/certs/ca.crt"
               - "--service-account-private-key-file=/etc/kubernetes/certs/apiserver.key"
               - "--v=2"
             volumeMounts: 
@@ -186,14 +187,14 @@ coreos:
         Restart=always
         ExecStart=/usr/bin/docker run \
           --net=host \
+          --pid=host \
           --privileged \
-          -v /sys:/sys:ro \
-          -v /var/run:/var/run:rw \
-          -v /:/rootfs:ro \
-          -v /dev:/dev \
-          -v /var/lib/docker/:/var/lib/docker:ro \
-          -v /etc/kubernetes/:/etc/kubernetes/:rw \
-          -v /var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/:/rootfs:ro \
+          --volume=/sys:/sys:ro \
+          --volume=/var/run:/var/run:rw \
+          --volume=/var/lib/docker/:/var/lib/docker:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/etc/kubernetes/:/etc/kubernetes:rw \
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
                 --containerized \
