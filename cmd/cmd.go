@@ -35,17 +35,21 @@ func NewRootCmd() *cobra.Command {
 	pflags := rootCmd.PersistentFlags()
 	pflags.Bool("debug", false, "debug mode, outputs more logging")
 	pflags.String("subscription-id", "", "azure subscription id")
+	pflags.String("tenant-id", "", "azure tenant id (deprecated)")
 	pflags.String("auth-method", "device", "auth method (default:`device`, `client_secret`, `client_certificate`)")
 	pflags.String("client-id", "", "client id (used with --auth-method=[client_secret|client_certificate])")
 	pflags.String("client-secret", "", "client secret (used with --auth-mode=client_secret)")
 	pflags.String("certificate-path", "", "path to client certificate (used with --auth-method=client_certificate)")
 	pflags.String("private-key-path", "", "path to private key (used with --auth-method=client_certificate)")
 
+	pflags.MarkDeprecated("tenant-id", "tenant-id is deprecated. it is now determined automatically from the subscription id")
+
 	viper.SetEnvPrefix("azkube")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.BindPFlag("debug", pflags.Lookup("debug"))
 	viper.BindPFlag("subscription-id", pflags.Lookup("subscription-id"))
+	viper.BindPFlag("tenant-id", pflags.Lookup("tenant-id"))
 	viper.BindPFlag("auth-method", pflags.Lookup("auth-method"))
 	viper.BindPFlag("client-id", pflags.Lookup("client-id"))
 	viper.BindPFlag("client-secret", pflags.Lookup("client-secret"))
@@ -85,8 +89,8 @@ func parseRootArgs(cmd *cobra.Command, args []string) RootArguments {
 	}
 
 	if rootArgs.Debug {
-		log.Infof("Enabling Debug logging.")
 		log.SetLevel(log.DebugLevel)
+		log.Debugf("debug logging enabled")
 	}
 
 	return rootArgs

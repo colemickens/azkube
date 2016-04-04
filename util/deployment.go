@@ -1,14 +1,19 @@
 package util
 
 import (
-	//	"fmt"
-	//	"time"
+	"fmt"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	log "github.com/Sirupsen/logrus"
 )
 
 func (azureClient *AzureClient) DeployTemplate(resourceGroupName, deploymentName string, template map[string]interface{}, parameters map[string]interface{}) (response *resources.DeploymentExtended, err error) {
+	// this is needed because either ARM or the SDK can't distinguish between past
+	// deployments and current deployments with the same deploymentName.
+	uniqueSuffix := fmt.Sprintf("-%d", time.Now().Unix())
+	deploymentName = deploymentName + uniqueSuffix
+
 	deployment := resources.Deployment{
 		Properties: &resources.DeploymentProperties{
 			Template:   &template,
