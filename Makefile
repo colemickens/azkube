@@ -2,7 +2,7 @@
 
 owner := colemickens
 projectname := azkube
-version := v0.0.4
+version := v0.0.5
 
 imagename := $(owner)/$(projectname):$(version)
 imagelatest := $(owner)/$(projectname):latest
