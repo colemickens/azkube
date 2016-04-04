@@ -35,14 +35,14 @@ func NewRootCmd() *cobra.Command {
 	pflags := rootCmd.PersistentFlags()
 	pflags.Bool("debug", false, "debug mode, outputs more logging")
 	pflags.String("subscription-id", "", "azure subscription id")
-	pflags.String("tenant-id", "", "azure tenant id (deprecated)")
+	pflags.String("tenant-id", "", "azure tenant id")
 	pflags.String("auth-method", "device", "auth method (default:`device`, `client_secret`, `client_certificate`)")
 	pflags.String("client-id", "", "client id (used with --auth-method=[client_secret|client_certificate])")
 	pflags.String("client-secret", "", "client secret (used with --auth-mode=client_secret)")
 	pflags.String("certificate-path", "", "path to client certificate (used with --auth-method=client_certificate)")
 	pflags.String("private-key-path", "", "path to private key (used with --auth-method=client_certificate)")
 
-	pflags.MarkDeprecated("tenant-id", "tenant-id is deprecated. it is now determined automatically from the subscription id")
+	pflags.MarkDeprecated("tenant-id", "it is now determined automatically from the subscription id")
 
 	viper.SetEnvPrefix("azkube")
 	viper.AutomaticEnv()
