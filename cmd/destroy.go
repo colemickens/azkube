@@ -98,7 +98,7 @@ func runDestroy(cmd *cobra.Command, args []string) {
 	}
 
 	log.Infof("Starting the deletion of resource group. resourceGroup=%q", destroyArgs.ResourceGroup)
-	_, err = azureClient.GroupsClient.Delete(destroyArgs.ResourceGroup)
+	_, err = azureClient.GroupsClient.Delete(destroyArgs.ResourceGroup, nil)
 	if err != nil {
 		log.Fatalf("Failed to destroy the resource group: %q", err)
 	}

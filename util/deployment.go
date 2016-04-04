@@ -26,7 +26,8 @@ func (azureClient *AzureClient) DeployTemplate(resourceGroupName, deploymentName
 	_, err = azureClient.DeploymentsClient.CreateOrUpdate(
 		resourceGroupName,
 		deploymentName,
-		deployment)
+		deployment,
+		nil)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	k8sapi "k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/restclient"
 	k8s "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
@@ -51,9 +52,9 @@ func ValidateKubernetes(flavorArgs FlavorArguments) error {
 }
 
 func getClient(flavorArgs FlavorArguments) (*k8s.Client, error) {
-	config := &k8s.Config{
+	config := &restclient.Config{
 		Host: "https://" + flavorArgs.MasterFQDN + ":6443",
-		TLSClientConfig: k8s.TLSClientConfig{
+		TLSClientConfig: restclient.TLSClientConfig{
 			CAData:   []byte(flavorArgs.CAKeyPair.CertificatePem),
 			CertData: []byte(flavorArgs.ClientKeyPair.CertificatePem),
 			KeyData:  []byte(flavorArgs.ClientKeyPair.PrivateKeyPem),
@@ -67,7 +68,7 @@ func validateStatus(flavorArgs FlavorArguments, c *k8s.Client) error {
 	log.Debugf("validate: status check")
 
 	statuses := c.ComponentStatuses()
-	statusList, err := statuses.List(nil, nil)
+	statusList, err := statuses.List(k8sapi.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func validateNodeCount(flavorArgs FlavorArguments, c *k8s.Client) error {
 	expectedHealthyNodeCount := flavorArgs.NodeCount
 
 	nodes := c.Nodes()
-	nodeList, err := nodes.List(nil, nil)
+	nodeList, err := nodes.List(k8sapi.ListOptions{})
 	if err != nil {
 		return err
 	}
