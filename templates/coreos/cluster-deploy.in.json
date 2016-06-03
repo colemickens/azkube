@@ -210,7 +210,21 @@
 							"priority": 100,
 							"direction": "Inbound"
 						}
-					}
+					},
+                                        {
+                                                "name": "allow_http_load_balancer",
+                                                "properties": {
+                                                        "description": "Allow http traffic to the nodes (Nginx DaemonSet)",
+                                                        "protocol": "Tcp",
+                                                        "sourcePortRange": "*",
+                                                        "destinationPortRange": "80-80",
+                                                        "sourceAddressPrefix": "*",
+                                                        "destinationAddressPrefix": "*",
+                                                        "access": "Allow",
+                                                        "priority": 102,
+                                                        "direction": "Inbound"
+                                                }
+                                        }
 				]
 			}
 		},
