@@ -332,7 +332,7 @@
         		],
         		"loadBalancingRules": [
           			{
-            				"name": "weblb",
+            				"name": "allow_web_load-balacing",
             				"properties": {
               					"frontendIPConfiguration": {
                 				"id": "[variables('lbFEIPConfigID')]"
