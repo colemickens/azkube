@@ -170,7 +170,7 @@ func runDeploy(cmd *cobra.Command, args []string) {
 
 	sshPrivateKey, sshPublicKeyString, err := util.CreateSaveSsh(deployArgs.Username, deployArgs.OutputDirectory)
 	if err != nil {
-		log.Fatalf("Error occurred while creating SSH assets.")
+		log.Fatalf("Error occurred while creating SSH assets. err=%q", err)
 	}
 
 	ca, apiserver, client, err := util.CreateSavePki(deployArgs.MasterFQDN, deployArgs.MasterExtraFQDNs, deployArgs.ClusterDomain, []net.IP{deployArgs.MasterPrivateIP}, deployArgs.OutputDirectory)

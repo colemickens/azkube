@@ -9,8 +9,8 @@ import:
 - package: github.com/mitchellh/go-homedir
 - package: github.com/Azure/go-autorest
   vcs: git
-  #repo: https://github.com/Azure/go-autorest
-  repo: https://github.com/colemickens/go-autorest
+  repo: https://github.com/Azure/go-autorest
+  #repo: https://github.com/colemickens/go-autorest
   subpackages:
   - autorest
   - autorest/azure
@@ -18,6 +18,5 @@ import:
   vcs: git
   repo: https://github.com/Sirupsen/logrus
 - package: k8s.io/kubernetes
-  version: v1.2.0
   subpackages:
   - pkg
