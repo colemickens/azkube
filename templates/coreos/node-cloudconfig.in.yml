@@ -142,12 +142,11 @@ coreos:
           --volume=/sys:/sys:ro \
           --volume=/var/run:/var/run:rw \
           --volume=/var/lib/docker/:/var/lib/docker:rw \
-          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:shared \
           --volume=/var/log/containers/:/var/log/containers:rw \
           --volume=/etc/kubernetes/:/etc/kubernetes/:rw \
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
-                --containerized \
                 --api-servers="https://{{{masterPrivateIp}}}:6443" \
                 --kubeconfig=/var/lib/kubelet/kubeconfig \
                 --address=0.0.0.0 \
