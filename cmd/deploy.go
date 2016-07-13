@@ -164,17 +164,17 @@ func runDeploy(cmd *cobra.Command, args []string) {
 
 	spClientID, spClientSecret, err := getCloudProviderCredentials(azureClient, rootArgs, deployArgs)
 	if err != nil {
-		log.Fatalf("Error occurred while creating service pricinpial assets.")
+		log.Fatalf("Error occurred while creating service pricinpial assets: %q", err)
 	}
 
 	sshPrivateKey, sshPublicKeyString, err := util.CreateSaveSsh(deployArgs.Username, deployArgs.OutputDirectory)
 	if err != nil {
-		log.Fatalf("Error occurred while creating SSH assets.")
+		log.Fatalf("Error occurred while creating SSH assets: %q", err)
 	}
 
 	ca, apiserver, client, err := util.CreateSavePki(deployArgs.MasterFQDN, deployArgs.MasterExtraFQDNs, deployArgs.ClusterDomain, []net.IP{deployArgs.MasterPrivateIP}, deployArgs.OutputDirectory)
 	if err != nil {
-		log.Fatalf("Error occurred while creating PKI assets.")
+		log.Fatalf("Error occurred while creating PKI assets: %q", err)
 	}
 
 	flavorArgs := convertDeployArgsToFlavorArgs(deployArgs, azureClient.TenantID, spClientID, spClientSecret, sshPrivateKey, sshPublicKeyString, ca, apiserver, client)
