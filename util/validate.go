@@ -76,8 +76,11 @@ func validateStatus(flavorArgs FlavorArguments, c *k8s.Client) error {
 	log.Debugf("validate: got status list")
 	for _, status := range statusList.Items {
 		for _, condition := range status.Conditions {
-			log.Debugf("validate: status (%q) type=%q status=%q message=%q error=%q", status.Name, condition.Type, condition.Status, condition.Message, condition.Error)
-			if condition.Type == k8sapi.ComponentHealthy && condition.Status != k8sapi.ConditionTrue {
+			log.Debugf("validate: status (%q) type=%q status=%q message=%q error=%q",
+				status.Name, condition.Type, condition.Status, condition.Message, condition.Error)
+
+			if condition.Type == k8sapi.ComponentHealthy &&
+				condition.Status != k8sapi.ConditionTrue {
 				return fmt.Errorf("validate: component not healthy. component=%q status=%q message=%q error=%q", status.Name, condition.Status, condition.Message, condition.Error)
 			}
 		}
