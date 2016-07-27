@@ -21,7 +21,7 @@ USERNAME="{{.Username}}"
 
 AZKUBE_BRANCH="v0.0.4"
 
-KUBECTL="`which kubectl`"
+KUBECTL="/home/coursierprive/kubernetes/cluster/kubectl.sh"
 dockerized_kubectl="${DIR}/../../../../_output/dockerized/bin/linux/amd64/kubectl"
 if [[ -f "${dockerized_kubectl}" ]]; then
 	KUBECTL="${dockerized_kubectl}"
@@ -50,10 +50,10 @@ cmd_curl() {
 }
 
 cmd_configure-kubectl() {
-	kubectl config set-cluster "${DEPLOYMENTNAME}" --server="https://${MASTERFQDN}:6443" --certificate-authority="${DIR}/ca.crt"
-	kubectl config set-credentials "${USERNAME}_user" --client-certificate="${DIR}/client.crt" --client-key="${DIR}/client.key"
-	kubectl config set-context "${DEPLOYMENTNAME}" --cluster="${DEPLOYMENTNAME}" --user="${USERNAME}_user"
-	kubectl config use-context "${DEPLOYMENTNAME}"
+	cmd_kubectl config set-cluster "${DEPLOYMENTNAME}" --server="https://${MASTERFQDN}:6443" --certificate-authority="${DIR}/ca.crt"
+	cmd_kubectl config set-credentials "${USERNAME}_user" --client-certificate="${DIR}/client.crt" --client-key="${DIR}/client.key"
+	cmd_kubectl config set-context "${DEPLOYMENTNAME}" --cluster="${DEPLOYMENTNAME}" --user="${USERNAME}_user"
+	cmd_kubectl config use-context "${DEPLOYMENTNAME}"
 }
 
 cmd_deploy-addons() {
