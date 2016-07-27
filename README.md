@@ -5,13 +5,48 @@
 	Tool used to deploy and bootstrap a Kubernetes cluster in Azure.
 
 
-## Running
+## Running azkube in Standalone
+
 	```
 	docker run -it \
 		colemickens/azkube:latest /opt/azkube/azkube \
-			--tenant-id="{your tenant id}" \
-			--subscription-id="{subscription id}"
+			--flavor="coreos" \
+			--node-size="Standard_D1" \
+			--master-size="Standard_D1" \
+			--node-count="3" \
+			--location="westus" \
+			--no-cloud-provider \ 
+			--subscription-id="{Azure subscription id}"
 	```
+
+# Flavors for Azkube
+
+The coreos flavor: 
+
+## The "coreos" flavor is deploying a cluster using the followings :
+	- CoreOs
+	- No LoadBalancer to server the traffic to the outside
+	- A Standard storage
+	- Not using the Ephemerials SSDs of the Azure D or DS serie to mount Docker lib
+
+## The "coreos-ssd" is deploying a cluster using the followings :
+	- CoreOS Stable version
+	- No LoadBalancer to serve the traffic to the outside (you must use your own solution)
+	- A Premium Storage
+	- Using the Ephemerials SSDs to mount the Docker lib on each nodes
+
+## The "coreos-lb" flavor is deploying a cluster with the followings : 
+	- CoreOS Stable version
+	- A LoadBalancer Azure (L4) linked on each nodes on the TCP:80 port (use this guide to deploy a Ingress/Nginx solution to use properly the Load-Balancer Azure.
+	- A Standard Storage
+	- Not using Ephemerials SSDs of the Azure D or DS serie to mount Docker lib
+
+## The "coreos-lbssd" flavor is deploying a cluster with the followings : 
+	- CoreOS Stable version
+	- A LoadBalancer Azure (L4) linked on each nodes on the TCP:80 port (use this guide to deploy a Ingress/Nginx solution to use properly the Load-Balancer Azure.
+	- A Premium Storage
+	- Using the Ephemerials SSDs to mount the Docker lib on each nodes
+
 
 ## Usage
 
