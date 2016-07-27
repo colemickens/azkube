@@ -19,9 +19,9 @@ DEPLOYMENTNAME="{{.DeploymentName}}"
 MASTERFQDN="{{.MasterFQDN}}"
 USERNAME="{{.Username}}"
 
-AZKUBE_BRANCH="v0.0.4"
+AZKUBE_BRANCH="v0.0.5"
 
-KUBECTL="/home/coursierprive/kubernetes/cluster/kubectl.sh"
+KUBECTL="`witch kubectl`"
 dockerized_kubectl="${DIR}/../../../../_output/dockerized/bin/linux/amd64/kubectl"
 if [[ -f "${dockerized_kubectl}" ]]; then
 	KUBECTL="${dockerized_kubectl}"

@@ -110,63 +110,15 @@ coreos:
   flannel:
     etcd_endpoints: "http://{{{masterPrivateIp}}}:2379"
   units:
-    - name: "docker.service"
-      drop-ins:
-        - name: 10-overlayfs.conf
-          content: |
-            [Unit]
-            After=var-lib-docker.mount
-            Requires=var-lib-docker.mount
-            [Service]
-            Environment="DOCKER_OPTS="--storage-driver=overlay""
-
-    - name: "format-ephemeral.service"
-      command: "start"
-<<<<<<< HEAD
-      content: |
-        [Unit]
-        Description=Format Ephemeral Volume
-        Documentation=https://coreos.com/os/docs/latest/mounting-storage.html
-        Before=docker.service var-lib-docker.mount
-        After=dev-sdb.device
-        Requires=dev-sdb.device
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        ExecStart=/bin/bash -c "/usr/bin/umount -f /mnt/resource || /bin/true"
-        ExecStart=/bin/bash -c "/usr/bin/umount -A /dev/sdb || /bin/true"
-        ExecStart=/usr/bin/rm -rf /mnt/resource
-        ExecStart=/usr/sbin/wipefs -f /dev/sdb
-        ExecStart=/usr/sbin/mkfs.ext4 -F /dev/sdb
-        [Install]
-        RequiredBy=var-lib-docker.mount
-
-    - name: "var-lib-docker.mount"
-      enable: true
-      content: |
-        [Unit]
-        Description=Mount /var/lib/docker
-        Documentation=https://coreos.com/os/docs/latest/mounting-storage.html
-        Before=docker.service
-        After=format-ephemeral.service
-        Requires=format-ephemeral.service
-        [Install]
-        RequiredBy=docker.service
-        [Mount]
-        What=/dev/sdb
-        Where=/var/lib/docker
-        Type=ext4
-
     - name: "flanneld.service"
       command: "start"
-
-=======
+    - name: "docker.service"
+      command: "start"
       drop-ins:
         - name: clear_mount_propagtion_flags.conf
           content: |
             [Service]
             MountFlags=shared
->>>>>>> upstream/master
     - name: "kubelet.service"
       command: "start"
       content: |

@@ -33,7 +33,8 @@ type DeployArguments struct {
 	MasterFQDN                  string
 	MasterPrivateIP             net.IP
 	ClusterDomain               string
-	MasterExtraFQDNs            []string
+	Flavor                      string
+        MasterExtraFQDNs            []string
 	ServicePrincipalPassthrough bool
 	NoCloudProvider             bool
 }
@@ -59,6 +60,7 @@ func NewDeployCmd() *cobra.Command {
 	flags.String("master-fqdn", "", "fqdn for master (used for PKI). calculated from cloudapp dns for master's public ip")
 	flags.String("master-private-ip", "10.0.1.4", "the internal vnet ip address to use for the master (used as a SAN in the PKI generation)")
 	flags.String("cluster-domain", "cluster.local", "the dns suffix used in the cluster (used as a SAN in the PKI generation)")
+	flags.String("flavor", "coreos", "the flavor of deployment to perform (currently supported: coreos, coreos-ssd, coreos-lb, coreos-lbssd)")
 	flags.StringSlice("master-extra-fqdns", []string{}, "comma delimited list of SANs for the master")
 	flags.Bool("service-principal-passthrough", false, "bypass service principal creation and use deployers credentials for cluster's service principal")
 	flags.Bool("no-cloud-provider", false, "skip service principal steps entirely. this suppresses creation of a new service principal and prevents passthrough of client_secret credentials")
@@ -83,6 +85,7 @@ func parseDeployArgs(cmd *cobra.Command, args []string) (RootArguments, DeployAr
 	viper.BindPFlag("master-fqdn", flags.Lookup("master-fqdn"))
 	viper.BindPFlag("master-private-ip", flags.Lookup("master-private-ip"))
 	viper.BindPFlag("cluster-domain", flags.Lookup("cluster-domain"))
+	viper.BindPFlag("flavor", flags.Lookup("flavor"))
 	viper.BindPFlag("master-extra-fqdns", flags.Lookup("master-extra-fqdns"))
 	viper.BindPFlag("service-principal-passthrough", flags.Lookup("service-principal-passthrough"))
 	viper.BindPFlag("no-cloud-provider", flags.Lookup("no-cloud-provider"))
@@ -105,6 +108,7 @@ func parseDeployArgs(cmd *cobra.Command, args []string) (RootArguments, DeployAr
 		MasterFQDN:                  viper.GetString("master-fqdn"),
 		MasterPrivateIP:             parsedMasterPrivateIP,
 		ClusterDomain:               viper.GetString("cluster-domain"),
+		Flavor:                      viper.GetString("flavor"),
 		MasterExtraFQDNs:            viper.GetStringSlice("master-extra-fqdns"),
 		ServicePrincipalPassthrough: viper.GetBool("service-principal-passthrough"),
 		NoCloudProvider:             viper.GetBool("no-cloud-provider"),
@@ -179,7 +183,7 @@ func runDeploy(cmd *cobra.Command, args []string) {
 
 	flavorArgs := convertDeployArgsToFlavorArgs(deployArgs, azureClient.TenantID, spClientID, spClientSecret, sshPrivateKey, sshPublicKeyString, ca, apiserver, client)
 
-	err = azureClient.DeployFlavor("coreos", flavorArgs, deployArgs.OutputDirectory)
+	err = azureClient.DeployFlavor(deployArgs.Flavor, flavorArgs, deployArgs.OutputDirectory)
 	if err != nil {
 		log.Fatalf("Error occurred while performing the deployment: %q", err)
 	}
@@ -202,17 +206,20 @@ func getCloudProviderCredentials(azureClient *util.AzureClient, rootArgs RootArg
 	} else if deployArgs.ServicePrincipalPassthrough {
 		return rootArgs.ClientID, rootArgs.ClientSecret, nil
 	} else {
+		var spObjectID string
 		appName := deployArgs.DeploymentName
 		appURL := fmt.Sprintf("https://%s/", deployArgs.DeploymentName)
-		_, spClientID, spClientSecret, err = azureClient.CreateApp(appName, appURL)
+		spClientID, spObjectID, spClientSecret, err = azureClient.CreateApp(appName, appURL)
 		if err != nil {
 			return "", "", err
 		}
 
-		err = azureClient.CreateRoleAssignment(deployArgs.ResourceGroup, spClientID)
+		err = azureClient.CreateRoleAssignment(deployArgs.ResourceGroup, spObjectID)
 		if err != nil {
 			return "", "", err
 		}
+		
+		log.Infof("RETRUNING CLIENT ID: %s", spClientID)
 
 		return spClientID, spClientSecret, nil
 	}

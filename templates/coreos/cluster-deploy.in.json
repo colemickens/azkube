@@ -9,6 +9,7 @@
 			}
 		},
 
+
 		"masterSize": {
 			"type": "string",
 			"defaultValue": "Standard_A1",
@@ -118,10 +119,7 @@
 		}
 	},
 	"variables": {
-		"azureApiVersion": "2016-01-01",
-                "computeApiVersion": "2016-03-30",
-    		"networkApiVersion": "2016-03-30",
-    		"storageApiVersion": "2015-06-15",
+		"azureApiVersion": "2015-05-01-preview",
 
 		"vmNamePrefix": "[concat(parameters('deploymentName'), '-vm-')]",
 
@@ -149,27 +147,15 @@
 		"storageContainerName": "kube-vm-disks",
 		"storageAccountType": "Standard_LRS",
 
-                "sshKeyPath": "[concat('/home/',parameters('username'),'/.ssh/authorized_keys')]",
+		"sshKeyPath": "[concat('/home/',parameters('username'),'/.ssh/authorized_keys')]",
 
 		"masterCloudConfig": "{{ .MasterScript}}",
-		"nodeCloudConfig": "{{ .NodeScript}}",
-
-
-                "publicIPAddressName": "[concat(parameters('deploymentName'), '-loadBalancer-pip')]",
-                "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]",
-                "lbName": "[concat(parameters('deploymentName'), '-loadBalancer')]",
-                "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
-                "lbFEName": "loadBalancerFrontEnd",
-                "lbWebProbeName": "loadBalancerWebProbe",
-                "lbBEAddressPool": "loadBalancerBEAddressPool",
-                "lbFEIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/',variables('lbFEName'))]",
-                "lbBEAddressPoolID": "[concat(variables('lbID'),'/backendAddressPools/',variables('lbBEAddressPool'))]",
-                "lbWebProbeID": "[concat(variables('lbID'),'/probes/',variables('lbWebProbeName'))]"
+		"nodeCloudConfig": "{{ .NodeScript}}"
 	},
 	"resources": [
 		{
 			"type": "Microsoft.Storage/storageAccounts",
-			"apiVersion": "[variables('storageApiVersion')]",
+			"apiVersion": "[variables('azureApiVersion')]",
 			"name": "[variables('storageAccountName')]",
 			"location": "[resourceGroup().location]",
 			"properties": {
@@ -178,7 +164,7 @@
 		},
 		{
 			"type": "Microsoft.Network/networkSecurityGroups",
-			"apiVersion": "[variables('networkApiVersion')]",
+			"apiVersion": "2015-05-01-preview",
 			"name": "[variables('nsgName')]",
 			"location": "[resourceGroup().location]",
 			"properties": {
@@ -210,27 +196,13 @@
 							"priority": 100,
 							"direction": "Inbound"
 						}
-					},
-                                        {
-                                                "name": "allow_http_load_balancer",
-                                                "properties": {
-                                                        "description": "Allow http traffic to the nodes (Nginx DaemonSet)",
-                                                        "protocol": "Tcp",
-                                                        "sourcePortRange": "*",
-                                                        "destinationPortRange": "80-80",
-                                                        "sourceAddressPrefix": "*",
-                                                        "destinationAddressPrefix": "*",
-                                                        "access": "Allow",
-                                                        "priority": 102,
-                                                        "direction": "Inbound"
-                                                }
-                                        }
+					}
 				]
 			}
 		},
 		{
 			"type": "Microsoft.Network/publicIPAddresses",
-			"apiVersion": "[variables('networkApiVersion')]",
+			"apiVersion": "[variables('azureApiVersion')]",
 			"name": "[concat(parameters('deploymentName'), '-pip-master')]",
 			"location": "[resourceGroup().location]",
 			"properties": {
@@ -240,21 +212,9 @@
 				}
 			}
 		},
-                {
-                        "type": "Microsoft.Network/publicIPAddresses",
-                        "apiVersion": "[variables('networkApiVersion')]",
-                        "name": "[variables('publicIPAddressName')]",
-                        "location": "[resourceGroup().location]",
-                        "properties": {
-                                "publicIPAllocationMethod": "Dynamic",
-                                "dnsSettings": {
-                                        "domainNameLabel": "[concat(parameters('deploymentName'), '-loadbalancer')]"
-                                }
-                        }
-                },
 		{
 			"type": "Microsoft.Network/virtualNetworks",
-			"apiVersion": "[variables('networkApiVersion')]",
+			"apiVersion": "[variables('azureApiVersion')]",
 			"name": "[variables('vnetName')]",
 			"location": "[resourceGroup().location]",
 			"dependsOn": [
@@ -281,7 +241,7 @@
 		},
 		{
 			"type": "Microsoft.Network/networkInterfaces",
-			"apiVersion": "[variables('networkApiVersion')]",
+			"apiVersion": "[variables('azureApiVersion')]",
 			"name": "[concat(parameters('deploymentName'), '-nic-master')]",
 			"location": "[resourceGroup().location]",
 			"dependsOn": [
@@ -306,66 +266,9 @@
 				]
 			}
 		},
-        	{	
-      			"apiVersion": "[variables('networkApiVersion')]",
-      			"name": "[variables('lbName')]",
-      			"type": "Microsoft.Network/loadBalancers",
-      			"location": "[resourceGroup().location]",
-      				"dependsOn": [
-        				"[concat('Microsoft.Network/publicIPAddresses/',variables('publicIPAddressName'))]"
-      			],
-      			"properties": {
-        			"frontendIPConfigurations": [
-          		    		{
-            					"name": "[variables('lbFEName')]",
-            					"properties": {
-              						"publicIPAddress": {
-                					"id": "[variables('publicIPAddressID')]"
-              					}	
-            				}
-          			}		
-        		],
-        		"backendAddressPools": [
-          			{
-            			"name": "[variables('lbBEAddressPool')]"
-          			}		
-        		],
-        		"loadBalancingRules": [
-          			{
-            				"name": "allow_web_load-balacing",
-            				"properties": {
-              					"frontendIPConfiguration": {
-                				"id": "[variables('lbFEIPConfigID')]"
-              				},
-              				"backendAddressPool": {
-                			"id": "[variables('lbBEAddressPoolID')]"
-              				},
-              				"probe": {
-               	 			"id": "[variables('lbWebProbeID')]"
-              				},
-              				"protocol": "tcp",
-              				"frontendPort": 80,
-              				"backendPort": 80,
-              				"enableFloatingIP": false
-            					}
-          				}
-        				],
-        				"probes": [
-          				{
-            			"name": "[variables('lbWebProbeName')]",
-                		"properties": {
-            				"protocol": "tcp",
-            				"port": 80,
-            				"intervalInSeconds": "15",
-            				"numberOfProbes": "5"
-            					}			
-          		    		}
-        	    		]
-      	    		}
-		},
 		{
 			"type": "Microsoft.Compute/virtualMachines",
-			"apiVersion": "[variables('computeApiVersion')]",
+			"apiVersion": "[variables('azureApiVersion')]",
 			"name": "[concat(variables('vmNamePrefix'), 'master')]",
 			"location": "[resourceGroup().location]",
 			"dependsOn": [
@@ -419,13 +322,12 @@
 		},
 		{
 			"type": "Microsoft.Compute/virtualMachineScaleSets",
-			"apiVersion": "[variables('computeApiVersion')]",
+			"apiVersion": "[variables('azureApiVersion')]",
 			"name": "[concat(variables('vmNamePrefix'), 'node-scaleset')]",
 			"location": "[resourceGroup().location]",
 			"dependsOn": [
 				"[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
-				"[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
-				"[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]"
+				"[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]"
 			],
 			"sku": {
 				"name": "[parameters('nodeSize')]",
@@ -481,12 +383,7 @@
 											"properties": {
 												"subnet": {
 													"id": "[concat(resourceId('Microsoft.Network/virtualNetworks/', variables('vnetName')), '/subnets/', variables('subnetName'))]"
-												},
-                                        						"loadBalancerBackendAddressPools": [
-                                            								{
-                                                							"id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('lbName'), '/backendAddressPools/loadBalancerBEAddressPool')]"
-                                            								}
-                                        							]
+												}
 											}
 										}
 									]
@@ -499,4 +396,3 @@
 		}
 	]
 }
-
