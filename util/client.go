@@ -62,7 +62,7 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 
 	home, err := homedir.Dir()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get user home directory to look for cached token.")
+		return nil, fmt.Errorf("Failed to get user home directory to look for cached token: %q", err)
 	}
 	cachePath := filepath.Join(home, ".azkube", fmt.Sprintf("token-cache-%s.json", tenantID))
 
@@ -74,14 +74,13 @@ func NewClientWithDeviceAuth(azureEnvironment azure.Environment, subscriptionID,
 		err = armSpt.Refresh()
 		if err != nil {
 			log.Warnf("Refresh token failed. Will fallback to device auth. %q", err)
+		} else {
+			adSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.GraphEndpoint, armSpt.Token)
+			if err != nil {
+				return nil, err
+			}
+			return azureClient.build(armSpt, adSpt)
 		}
-
-		adSpt, err := azure.NewServicePrincipalTokenFromManualToken(azureClient.OAuthConfig, azureClient.ClientID, azureClient.Environment.GraphEndpoint, armSpt.Token)
-		if err != nil {
-			return nil, err
-		}
-
-		return azureClient.build(armSpt, adSpt)
 	}
 
 	client := &autorest.Client{}

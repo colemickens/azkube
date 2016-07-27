@@ -218,7 +218,17 @@ coreos:
             [Service]
             ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config "{ \"Network\": \"[[[kubePodCidr]]]\" }"
       command: "start"
+<<<<<<< HEAD
 
+=======
+    - name: "docker.service"
+      command: "start"
+      drop-ins:
+        - name: clear_mount_propagtion_flags.conf
+          content: |
+            [Service]
+            MountFlags=shared
+>>>>>>> upstream/master
     - name: "kubelet.service"
       command: "start"
       content: |
@@ -231,6 +241,9 @@ coreos:
 
         [Service]
         Restart=always
+        ExecStartPre=/bin/mkdir -p /var/lib/kubelet
+        ExecStartPre=/bin/mount --bind /var/lib/kubelet /var/lib/kubelet
+        ExecStartPre=/bin/mount --make-shared /var/lib/kubelet
         ExecStart=/usr/bin/docker run \
           --net=host \
           --pid=host \
@@ -239,11 +252,11 @@ coreos:
           --volume=/sys:/sys:ro \
           --volume=/var/run:/var/run:rw \
           --volume=/var/lib/docker/:/var/lib/docker:rw \
-          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:shared \
+          --volume=/var/log/containers/:/var/log/containers:rw \
           --volume=/etc/kubernetes/:/etc/kubernetes:rw \
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
-                --containerized \
                 --api-servers="https://{{{masterPrivateIp}}}:6443" \
                 --kubeconfig=/var/lib/kubelet/kubeconfig \
                 --address=0.0.0.0 \

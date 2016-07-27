@@ -14,7 +14,8 @@ import (
 // the value from WWW-Authenticate header.
 func GetTenantID(env azure.Environment, subscriptionID string) (string, error) {
 	const hdrKey = "WWW-Authenticate"
-	c := subscriptions.NewClientWithBaseURI(env.ResourceManagerEndpoint, "")
+	c := subscriptions.NewClient()
+	c.BaseURI = env.ResourceManagerEndpoint
 
 	// we expect this request to fail (err != nil), but we are only interested
 	// in headers, so surface the error if the Response is not present (i.e.

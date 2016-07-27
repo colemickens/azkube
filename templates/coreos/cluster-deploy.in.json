@@ -131,7 +131,7 @@
 
 		"osImagePublisher": "CoreOS",
 		"osImageOffer": "CoreOS",
-		"osImageSKU": "Beta",
+		"osImageSKU": "Stable",
 
 		"nsgName": "[concat(parameters('deploymentName'), '-nsg')]",
 		"vnetName": "[concat(parameters('deploymentName'), '-vnet')]",
