@@ -170,6 +170,7 @@ coreos:
             After=var-lib-docker.mount
             Requires=var-lib-docker.mount
             [Service]
+            MountFlags=shared
             Environment="DOCKER_OPTS="--storage-driver=overlay""
 
     - name: "format-ephemeral.service"
@@ -218,6 +219,7 @@ coreos:
             [Service]
             ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config "{ \"Network\": \"[[[kubePodCidr]]]\" }"
       command: "start"
+
     - name: "kubelet.service"
       command: "start"
       content: |
@@ -230,9 +232,6 @@ coreos:
 
         [Service]
         Restart=always
-        ExecStartPre=/bin/mkdir -p /var/lib/kubelet
-        ExecStartPre=/bin/mount --bind /var/lib/kubelet /var/lib/kubelet
-        ExecStartPre=/bin/mount --make-shared /var/lib/kubelet
         ExecStart=/usr/bin/docker run \
           --net=host \
           --pid=host \
@@ -242,10 +241,10 @@ coreos:
           --volume=/var/run:/var/run:rw \
           --volume=/var/lib/docker/:/var/lib/docker:rw \
           --volume=/var/lib/kubelet/:/var/lib/kubelet:shared \
-          --volume=/var/log/containers/:/var/log/containers:rw \
           --volume=/etc/kubernetes/:/etc/kubernetes:rw \
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
+                --containerized \
                 --api-servers="https://{{{masterPrivateIp}}}:6443" \
                 --kubeconfig=/var/lib/kubelet/kubeconfig \
                 --address=0.0.0.0 \

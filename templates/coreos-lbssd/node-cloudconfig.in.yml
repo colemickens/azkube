@@ -1,8 +1,5 @@
 #cloud-config
 
-# [ [ [ var ] ] ]
-# { { { param } } }
-
 write_files:
 - path: "/etc/kubernetes/azure/auth.json"
   permissions: "0644"
@@ -11,7 +8,7 @@ write_files:
     {
         "tenantId": "{{{tenantID}}}",
         "subscriptionId": "[[[subscriptionId]]]",
-        "resourceGroup": "[[[resourceGroup]]]",
+        "resourceGroup": "[[[resourceGrou{{{kubernetesHyperkubeSpec}}}]",
         "servicePrincipalClientId": "{{{servicePrincipalClientId}}}",
         "servicePrincipalClientSecret": "{{{servicePrincipalClientSecret}}}"
     }
@@ -74,66 +71,18 @@ write_files:
       name: localclustercontext
     current-context: localclustercontext
 
-- path: /etc/kubernetes/manifests/master.yaml
+- path: /etc/kubernetes/manifests/node.yaml
   permissions: "0644"
   owner: "root"
   content: |
       apiVersion: "v1"
       kind: "Pod"
       metadata:
-        name: "k8s-master"
+        name: "k8s-node"
         namespace: "kube-system"
       spec:
         hostNetwork: true
         containers:
-          - name: "kube-apiserver"
-            image: "{{{kubernetesHyperkubeSpec}}}"
-            command: 
-              - "/hyperkube"
-              - "apiserver"
-              - "--admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota"
-              - "--address=0.0.0.0"
-              - "--allow-privileged"
-              - "--insecure-port=8080"
-              - "--secure-port=6443"
-              - "--service-cluster-ip-range=[[[kubeServiceCidr]]]"
-              - "--etcd-servers=http://127.0.0.1:4001"
-              - "--tls-cert-file=/etc/kubernetes/certs/apiserver.crt"
-              - "--tls-private-key-file=/etc/kubernetes/certs/apiserver.key"
-              - "--client-ca-file=/etc/kubernetes/certs/ca.crt"
-              - "--service-account-key-file=/etc/kubernetes/certs/apiserver.key"
-              - "--v=2"
-            volumeMounts: 
-              - name: "etc-kubernetes"
-                mountPath: "/etc/kubernetes"
-              - name: "var-lib-kubelet"
-                mountPath: "/var/lib/kubelet"
-          - name: "kube-controller-manager"
-            image: "{{{kubernetesHyperkubeSpec}}}"
-            command: 
-              - "/hyperkube"
-              - "controller-manager"
-              - "--kubeconfig=/var/lib/kubelet/kubeconfig"
-              - "--root-ca-file=/etc/kubernetes/certs/ca.crt"
-              - "--service-account-private-key-file=/etc/kubernetes/certs/apiserver.key"
-              - "--v=2"
-            volumeMounts: 
-              - name: "etc-kubernetes"
-                mountPath: "/etc/kubernetes"
-              - name: "var-lib-kubelet"
-                mountPath: "/var/lib/kubelet"
-          - name: "kube-scheduler"
-            image: "{{{kubernetesHyperkubeSpec}}}"
-            command:
-              - "/hyperkube"
-              - "scheduler"
-              - "--kubeconfig=/var/lib/kubelet/kubeconfig"
-              - "--v=2"
-            volumeMounts:
-              - name: "etc-kubernetes"
-                mountPath: "/etc/kubernetes"
-              - name: "var-lib-kubelet"
-                mountPath: "/var/lib/kubelet"
           - name: "kube-proxy"
             image: "{{{kubernetesHyperkubeSpec}}}"
             command: 
@@ -158,9 +107,8 @@ write_files:
               path: "/var/lib/kubelet"
 
 coreos:
-  etcd2:
-    advertise-client-urls: "http://127.0.0.1:2379,http://{{{masterPrivateIp}}}:2379"
-    listen-client-urls: "http://0.0.0.0:2379,http://0.0.0.0:4001"
+  flannel:
+    etcd_endpoints: "http://{{{masterPrivateIp}}}:2379"
   units:
     - name: "docker.service"
       drop-ins:
@@ -170,6 +118,7 @@ coreos:
             After=var-lib-docker.mount
             Requires=var-lib-docker.mount
             [Service]
+            MountFlags=shared
             Environment="DOCKER_OPTS="--storage-driver=overlay""
 
     - name: "format-ephemeral.service"
@@ -208,16 +157,9 @@ coreos:
         Where=/var/lib/docker
         Type=ext4
 
-    - name: "etcd2.service"
+    - name: "flanneld.service"
       command: "start"
 
-    - name: flanneld.service
-      drop-ins:
-        - name: 50-network-config.conf
-          content: |
-            [Service]
-            ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config "{ \"Network\": \"[[[kubePodCidr]]]\" }"
-      command: "start"
     - name: "kubelet.service"
       command: "start"
       content: |
@@ -243,7 +185,7 @@ coreos:
           --volume=/var/lib/docker/:/var/lib/docker:rw \
           --volume=/var/lib/kubelet/:/var/lib/kubelet:shared \
           --volume=/var/log/containers/:/var/log/containers:rw \
-          --volume=/etc/kubernetes/:/etc/kubernetes:rw \
+          --volume=/etc/kubernetes/:/etc/kubernetes/:rw \
             {{{kubernetesHyperkubeSpec}}} \
               /hyperkube kubelet \
                 --api-servers="https://{{{masterPrivateIp}}}:6443" \
@@ -255,6 +197,6 @@ coreos:
                 --cluster-dns=[[[kubeDnsServiceIP]]] \
                 --cluster-domain=cluster.local \
                 --register-node=true \
-                --register-schedulable=false \
+                --register-schedulable=true \
                 --v=2
         ExecStop=/usr/bin/docker stop -t 2 kubelet

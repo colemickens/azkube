@@ -170,6 +170,7 @@ coreos:
             After=var-lib-docker.mount
             Requires=var-lib-docker.mount
             [Service]
+            MountFlags=shared
             Environment="DOCKER_OPTS="--storage-driver=overlay""
 
     - name: "format-ephemeral.service"
@@ -218,6 +219,7 @@ coreos:
             [Service]
             ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config "{ \"Network\": \"[[[kubePodCidr]]]\" }"
       command: "start"
+
     - name: "kubelet.service"
       command: "start"
       content: |
