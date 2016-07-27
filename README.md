@@ -21,29 +21,29 @@
 
 # Flavors for Azkube
 
-## The "coreos" flavor 
-is deploying a cluster using the followings :
+## The "coreos" flavor :
+
 	- CoreOS Stable version
 	- No LoadBalancer to server the traffic to the outside
 	- A Standard storage
 	- Not using the Ephemerials SSDs of the Azure D or DS serie to mount Docker lib
 
-## The "coreos-ssd" 
-is deploying a cluster using the followings :
+## The "coreos-ssd" :
+
 	- CoreOS Stable version
 	- No LoadBalancer to serve the traffic to the outside (you must use your own solution)
 	- A Premium Storage
 	- Using the Ephemerials SSDs to mount the Docker lib on each nodes
 
-## The "coreos-lb" flavor 
-is deploying a cluster with the followings : 
+## The "coreos-lb" flavor :
+
 	- CoreOS Stable version
 	- A LoadBalancer Azure (L4) linked on each nodes on the TCP:80 port (use this guide to deploy a Ingress/Nginx solution to use properly the Azure Load-Balancer).
 	- A Standard Storage
 	- Not using Ephemerials SSDs of the Azure D or DS serie to mount Docker lib
 
-## The "coreos-lbssd" flavor 
-is deploying a cluster with the followings : 
+## The "coreos-lbssd" flavor :
+
 	- CoreOS Stable version
 	- A LoadBalancer Azure (L4) linked on each nodes on the TCP:80 port (use this guide to deploy a Ingress/Nginx solution to use properly the Azure Load-Balancer).
 	- A Premium Storage
