@@ -1,6 +1,18 @@
 # azkube
 
 
+## Deprecation Notice (!!!)
+
+The supported method for deploying Kubernetes clusters in Azure is now [`kubernetes-anywhere`](https://github.com/kubernetes/kubernetes-anywhere).
+
+Please see [`azure-kubernetes-status`](https://github.com/colemickens/azure-kubernetes-status) for more information.
+
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+
 ## Overview
 	Tool used to deploy and bootstrap a Kubernetes cluster in Azure.
 
