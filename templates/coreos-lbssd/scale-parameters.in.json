@@ -1,0 +1,6 @@
+{
+  "vmscalesetName": { "value": "{{.DeploymentName}}-vm-node-scaleset" },
+
+  "nodeSize": { "value": "{{js .NodeSize}}" },
+  "nodeCount": { "value": {{js .NodeCount}} }
+}

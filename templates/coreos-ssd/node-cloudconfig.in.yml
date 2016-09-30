@@ -1,0 +1,199 @@
+#cloud-config
+
+write_files:
+- path: "/etc/kubernetes/azure/auth.json"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    {
+        "tenantId": "{{{tenantID}}}",
+        "subscriptionId": "[[[subscriptionId]]]",
+        "resourceGroup": "[[[resourceGrou{{{kubernetesHyperkubeSpec}}}]",
+        "servicePrincipalClientId": "{{{servicePrincipalClientId}}}",
+        "servicePrincipalClientSecret": "{{{servicePrincipalClientSecret}}}"
+    }
+
+- path: "/etc/kubernetes/certs/ca.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{caCertificate}}}
+
+- path: "/etc/kubernetes/certs/apiserver.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{apiserverCertificate}}}
+
+- path: "/etc/kubernetes/certs/apiserver.key"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{apiserverPrivateKey}}}
+
+- path: "/etc/kubernetes/certs/client.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{clientCertificate}}}
+
+- path: "/etc/kubernetes/certs/client.key"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{{clientPrivateKey}}}
+
+- path: "/var/lib/kubelet/kubeconfig"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+    - name: localcluster
+      cluster:
+        certificate-authority: /etc/kubernetes/certs/ca.crt
+        server: https://{{{masterPrivateIp}}}:6443
+    users:
+    - name: client
+      user:
+        client-certificate: /etc/kubernetes/certs/client.crt
+        client-key: /etc/kubernetes/certs/client.key
+    contexts:
+    - context:
+        cluster: localcluster
+        user: client
+      name: localclustercontext
+    current-context: localclustercontext
+
+- path: /etc/kubernetes/manifests/node.yaml
+  permissions: "0644"
+  owner: "root"
+  content: |
+      apiVersion: "v1"
+      kind: "Pod"
+      metadata:
+        name: "k8s-node"
+        namespace: "kube-system"
+      spec:
+        hostNetwork: true
+        containers:
+          - name: "kube-proxy"
+            image: "{{{kubernetesHyperkubeSpec}}}"
+            command: 
+              - "/hyperkube"
+              - "proxy"
+              - "--kubeconfig=/var/lib/kubelet/kubeconfig"
+              - "--proxy-mode=iptables"
+              - "--v=2"
+            securityContext:
+              privileged: true
+            volumeMounts:
+              - name: "etc-kubernetes"
+                mountPath: "/etc/kubernetes"
+              - name: "var-lib-kubelet"
+                mountPath: "/var/lib/kubelet"
+        volumes: 
+          - name: "etc-kubernetes"
+            hostPath:
+              path: "/etc/kubernetes"
+          - name: "var-lib-kubelet"
+            hostPath:
+              path: "/var/lib/kubelet"
+
+coreos:
+  flannel:
+    etcd_endpoints: "http://{{{masterPrivateIp}}}:2379"
+  units:
+    - name: "docker.service"
+      drop-ins:
+        - name: 10-overlayfs.conf
+          content: |
+            [Unit]
+            After=var-lib-docker.mount
+            Requires=var-lib-docker.mount
+            [Service]
+            MountFlags=shared
+            Environment="DOCKER_OPTS="--storage-driver=overlay""
+
+    - name: "format-ephemeral.service"
+      command: "start"
+      content: |
+        [Unit]
+        Description=Format Ephemeral Volume
+        Documentation=https://coreos.com/os/docs/latest/mounting-storage.html
+        Before=docker.service var-lib-docker.mount
+        After=dev-sdb.device
+        Requires=dev-sdb.device
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/bin/bash -c "/usr/bin/umount -f /mnt/resource || /bin/true"
+        ExecStart=/bin/bash -c "/usr/bin/umount -A /dev/sdb || /bin/true"
+        ExecStart=/usr/bin/rm -rf /mnt/resource
+        ExecStart=/usr/sbin/wipefs -f /dev/sdb
+        ExecStart=/usr/sbin/mkfs.ext4 -F /dev/sdb
+        [Install]
+        RequiredBy=var-lib-docker.mount
+
+    - name: "var-lib-docker.mount"
+      enable: true
+      content: |
+        [Unit]
+        Description=Mount /var/lib/docker
+        Documentation=https://coreos.com/os/docs/latest/mounting-storage.html
+        Before=docker.service
+        After=format-ephemeral.service
+        Requires=format-ephemeral.service
+        [Install]
+        RequiredBy=docker.service
+        [Mount]
+        What=/dev/sdb
+        Where=/var/lib/docker
+        Type=ext4
+
+    - name: "flanneld.service"
+      command: "start"
+
+    - name: "kubelet.service"
+      command: "start"
+      content: |
+        [Unit]
+        Description=Kubelet
+        Requires=docker.service
+        Requires=flanneld.service
+        After=docker.service
+        After=flanneld.service
+
+        [Service]
+        Restart=always
+        ExecStart=/usr/bin/docker run \
+          --net=host \
+          --pid=host \
+          --privileged \
+          --volume=/:/rootfs:ro \
+          --volume=/sys:/sys:ro \
+          --volume=/var/run:/var/run:rw \
+          --volume=/var/lib/docker/:/var/lib/docker:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:shared \
+          --volume=/etc/kubernetes/:/etc/kubernetes/:rw \
+            {{{kubernetesHyperkubeSpec}}} \
+              /hyperkube kubelet \
+                --containerized \
+                --api-servers="https://{{{masterPrivateIp}}}:6443" \
+                --kubeconfig=/var/lib/kubelet/kubeconfig \
+                --address=0.0.0.0 \
+                --allow-privileged=true \
+                --enable-server \
+                --config=/etc/kubernetes/manifests \
+                --cluster-dns=[[[kubeDnsServiceIP]]] \
+                --cluster-domain=cluster.local \
+                --register-node=true \
+                --register-schedulable=true \
+                --v=2
+        ExecStop=/usr/bin/docker stop -t 2 kubelet

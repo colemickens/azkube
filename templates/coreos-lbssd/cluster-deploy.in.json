@@ -1,0 +1,502 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"deploymentName": {
+			"type": "string",
+			"metadata": {
+				"description": "name for deployment, must be unique, used as prefix"
+			}
+		},
+
+		"masterSize": {
+			"type": "string",
+			"defaultValue": "Standard_A1",
+			"metadata": {
+				"description": "Instance size for the VMs"
+			}
+		},
+		"nodeSize": {
+			"type": "string",
+			"defaultValue": "Standard_A1",
+			"metadata": {
+				"description": "Instance size for the VMs"
+			}
+		},
+		"nodeCount": {
+			"type": "int",
+			"defaultValue": 1,
+			"metadata": {
+				"description": "Number of node nodes to create in addition to the master"
+			}
+		},
+		"username": {
+			"type": "string",
+			"defaultValue": "kube",
+			"metadata": {
+				"description": "Username to login to the VMs"
+			}
+		},
+		"sshPublicKeyData": {
+			"type": "string",
+			"metadata": {
+				"description": "Public key for SSH authentication"
+			}
+		},
+
+
+		"tenantId": {
+			"type":" string",
+			"metadata": {
+			}
+		},
+
+
+		"servicePrincipalClientId": {
+			"type": "string",
+			"metadata": {
+				"description": "Client ID (used by cloudprovider)"
+			}
+		},
+		"servicePrincipalClientSecret": {
+			"type": "string"
+		},
+
+
+		"masterFqdn": {
+			"type": "string",
+			"metadata": {
+				"description": "The fully qualified domain name for the master"
+			}
+		},
+		"masterPrivateIp": {
+			"type": "string",
+			"metadata": {
+				"description": "The internal vnet ip to assign to the master"
+			}
+		},
+
+
+		"kubernetesHyperkubeSpec": {
+			"type": "string",
+			"metadata": {
+				"description": "container spec for hyperkube"
+			}
+		},
+
+
+		"caCertificate": {
+			"type": "string",
+			"metadata": {
+			}
+		},
+		"caPrivateKey": {
+			"type": "securestring",
+			"metadata": {
+			}
+		},
+		"apiserverCertificate": {
+			"type": "string",
+			"metadata": {
+				"description": "The AD Tenant Id"
+			}
+		},
+		"apiserverPrivateKey": {
+			"type": "securestring",
+			"metadata": {
+			}
+		},
+		"clientCertificate": {
+			"type": "string",
+			"metadata": {
+			}
+		},
+		"clientPrivateKey": {
+			"type": "securestring",
+			"metadata": {
+			}
+		}
+	},
+	"variables": {
+		"azureApiVersion": "2016-01-01",
+                "computeApiVersion": "2016-03-30",
+    		"networkApiVersion": "2016-03-30",
+    		"storageApiVersion": "2015-06-15",
+
+		"vmNamePrefix": "[concat(parameters('deploymentName'), '-vm-')]",
+
+		"location": "[resourceGroup().location]",
+		"subscriptionId": "[subscription().id]",
+		"resourceGroup": "[resourceGroup().name]",
+
+		"osImagePublisher": "CoreOS",
+		"osImageOffer": "CoreOS",
+		"osImageSKU": "Stable",
+
+		"nsgName": "[concat(parameters('deploymentName'), '-nsg')]",
+		"vnetName": "[concat(parameters('deploymentName'), '-vnet')]",
+		"vnetCidr": "10.0.0.0/8",
+		"subnetName": "[concat(parameters('deploymentName'), '-subnet')]",
+		"subnetCidr": "10.0.0.0/8",
+		"vnetRef": "[resourceId('Microsoft.Network/virtualNetworks',variables('vnetName'))]",
+		"subnetRef": "[concat(variables('vnetRef'),'/subnets/',variables('subnetName'))]",
+
+		"kubePodCidr": "10.2.0.0/16",
+		"kubeServiceCidr": "10.3.0.0/16",
+		"kubeDnsServiceIp": "10.3.0.10",
+
+		"storageAccountName": "[replace(concat(parameters('deploymentName'), 'strg'),'-','')]",
+		"storageContainerName": "kube-vm-disks",
+		"storageAccountType": "Premium_LRS",
+
+                "sshKeyPath": "[concat('/home/',parameters('username'),'/.ssh/authorized_keys')]",
+
+		"masterCloudConfig": "{{ .MasterScript}}",
+		"nodeCloudConfig": "{{ .NodeScript}}",
+
+
+                "publicIPAddressName": "[concat(parameters('deploymentName'), '-loadBalancer-pip')]",
+                "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]",
+                "lbName": "[concat(parameters('deploymentName'), '-loadBalancer')]",
+                "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
+                "lbFEName": "loadBalancerFrontEnd",
+                "lbWebProbeName": "loadBalancerWebProbe",
+                "lbBEAddressPool": "loadBalancerBEAddressPool",
+                "lbFEIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/',variables('lbFEName'))]",
+                "lbBEAddressPoolID": "[concat(variables('lbID'),'/backendAddressPools/',variables('lbBEAddressPool'))]",
+                "lbWebProbeID": "[concat(variables('lbID'),'/probes/',variables('lbWebProbeName'))]"
+	},
+	"resources": [
+		{
+			"type": "Microsoft.Storage/storageAccounts",
+			"apiVersion": "[variables('storageApiVersion')]",
+			"name": "[variables('storageAccountName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"accountType": "[variables('storageAccountType')]"
+			}
+		},
+		{
+			"type": "Microsoft.Network/networkSecurityGroups",
+			"apiVersion": "[variables('networkApiVersion')]",
+			"name": "[variables('nsgName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"securityRules": [
+					{
+						"name": "allow_ssh",
+						"properties": {
+							"description": "Allow SSH traffic to master",
+							"protocol": "Tcp",
+							"sourcePortRange": "*",
+							"destinationPortRange": "22-22",
+							"sourceAddressPrefix": "*",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"priority": 101,
+							"direction": "Inbound"
+						}
+					},
+					{
+						"name": "allow_kube_tls",
+						"properties": {
+							"description": "Allow kube-apiserver (tls) traffic to master",
+							"protocol": "Tcp",
+							"sourcePortRange": "*",
+							"destinationPortRange": "6443-6443",
+							"sourceAddressPrefix": "*",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"priority": 100,
+							"direction": "Inbound"
+						}
+					},
+                                        {
+                                                "name": "allow_http_load_balancer",
+                                                "properties": {
+                                                        "description": "Allow http traffic to the nodes (Nginx DaemonSet)",
+                                                        "protocol": "Tcp",
+                                                        "sourcePortRange": "*",
+                                                        "destinationPortRange": "80-80",
+                                                        "sourceAddressPrefix": "*",
+                                                        "destinationAddressPrefix": "*",
+                                                        "access": "Allow",
+                                                        "priority": 102,
+                                                        "direction": "Inbound"
+                                                }
+                                        }
+				]
+			}
+		},
+		{
+			"type": "Microsoft.Network/publicIPAddresses",
+			"apiVersion": "[variables('networkApiVersion')]",
+			"name": "[concat(parameters('deploymentName'), '-pip-master')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"publicIPAllocationMethod": "Dynamic",
+				"dnsSettings": {
+					"domainNameLabel": "[parameters('deploymentName')]"
+				}
+			}
+		},
+                {
+                        "type": "Microsoft.Network/publicIPAddresses",
+                        "apiVersion": "[variables('networkApiVersion')]",
+                        "name": "[variables('publicIPAddressName')]",
+                        "location": "[resourceGroup().location]",
+                        "properties": {
+                                "publicIPAllocationMethod": "Dynamic",
+                                "dnsSettings": {
+                                        "domainNameLabel": "[concat(parameters('deploymentName'), '-loadbalancer')]"
+                                }
+                        }
+                },
+		{
+			"type": "Microsoft.Network/virtualNetworks",
+			"apiVersion": "[variables('networkApiVersion')]",
+			"name": "[variables('vnetName')]",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"[concat('Microsoft.Network/networkSecurityGroups/', variables('nsgName'))]"
+			],
+			"properties": {
+				"addressSpace": {
+					"addressPrefixes": [
+						"[variables('vnetCidr')]"
+					]
+				},
+				"subnets": [
+					{
+						"name": "[variables('subnetName')]",
+						"properties": {
+							"addressPrefix": "[variables('subnetCidr')]",
+							"networkSecurityGroup": {
+								"id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+							}
+						}
+					}
+				]
+			}
+		},
+		{
+			"type": "Microsoft.Network/networkInterfaces",
+			"apiVersion": "[variables('networkApiVersion')]",
+			"name": "[concat(parameters('deploymentName'), '-nic-master')]",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"[concat('Microsoft.Network/publicIPAddresses/', parameters('deploymentName'), '-pip-master')]",
+				"[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]"
+			],
+			"properties": {
+				"ipConfigurations": [
+					{
+						"name": "ipconfig1",
+						"properties": {
+							"privateIPAllocationMethod": "Static",
+							"privateIPAddress": "[parameters('masterPrivateIp')]",
+							"publicIPAddress": {
+								"id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(parameters('deploymentName'), '-pip-master'))]"
+							},
+							"subnet": {
+								"id": "[variables('subnetRef')]"
+							}
+						}
+					}
+				]
+			}
+		},
+        	{	
+      			"apiVersion": "[variables('networkApiVersion')]",
+      			"name": "[variables('lbName')]",
+      			"type": "Microsoft.Network/loadBalancers",
+      			"location": "[resourceGroup().location]",
+      				"dependsOn": [
+        				"[concat('Microsoft.Network/publicIPAddresses/',variables('publicIPAddressName'))]"
+      			],
+      			"properties": {
+        			"frontendIPConfigurations": [
+          		    		{
+            					"name": "[variables('lbFEName')]",
+            					"properties": {
+              						"publicIPAddress": {
+                					"id": "[variables('publicIPAddressID')]"
+              					}	
+            				}
+          			}		
+        		],
+        		"backendAddressPools": [
+          			{
+            			"name": "[variables('lbBEAddressPool')]"
+          			}		
+        		],
+        		"loadBalancingRules": [
+          			{
+            				"name": "allow_web_load-balacing",
+            				"properties": {
+              					"frontendIPConfiguration": {
+                				"id": "[variables('lbFEIPConfigID')]"
+              				},
+              				"backendAddressPool": {
+                			"id": "[variables('lbBEAddressPoolID')]"
+              				},
+              				"probe": {
+               	 			"id": "[variables('lbWebProbeID')]"
+              				},
+              				"protocol": "tcp",
+              				"frontendPort": 80,
+              				"backendPort": 80,
+              				"enableFloatingIP": false
+            					}
+          				}
+        				],
+        				"probes": [
+          				{
+            			"name": "[variables('lbWebProbeName')]",
+                		"properties": {
+            				"protocol": "tcp",
+            				"port": 80,
+            				"intervalInSeconds": "15",
+            				"numberOfProbes": "5"
+            					}			
+          		    		}
+        	    		]
+      	    		}
+		},
+		{
+			"type": "Microsoft.Compute/virtualMachines",
+			"apiVersion": "[variables('computeApiVersion')]",
+			"name": "[concat(variables('vmNamePrefix'), 'master')]",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+				"[concat('Microsoft.Network/networkInterfaces/', parameters('deploymentName'), '-nic-master')]"
+			],
+			"properties": {
+				"hardwareProfile": {
+					"vmSize": "[parameters('masterSize')]"
+				},
+				"osProfile": {
+					"computername": "[concat(variables('vmNamePrefix'), 'master')]",
+					"adminUsername": "[parameters('username')]",
+					"customData": "[variables('masterCloudConfig')]",
+					"linuxConfiguration": {
+						"disablePasswordAuthentication": "true",
+						"ssh": {
+							"publicKeys": [
+								{
+									"path": "[variables('sshKeyPath')]",
+									"keyData": "[parameters('sshPublicKeyData')]"
+								}
+							]
+						}
+					}
+				},
+				"storageProfile": {
+					"imageReference": {
+						"publisher": "[variables('osImagePublisher')]",
+						"offer": "[variables('osImageOffer')]",
+						"sku": "[variables('osImageSku')]",
+						"version": "latest"
+					},
+					"osDisk": {
+						"name": "[concat(variables('vmNamePrefix'), 'master')]",
+						"vhd": {
+							"uri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net/',variables('storageContainerName'),'/',variables('vmNamePrefix'), 'master.vhd')]"
+						},
+						"caching": "ReadWrite",
+						"createOption": "FromImage"
+					}
+				},
+				"networkProfile": {
+					"networkInterfaces": [
+						{
+							"id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('deploymentName'),'-nic-master'))]"
+						}
+					]
+				}
+			}
+		},
+		{
+			"type": "Microsoft.Compute/virtualMachineScaleSets",
+			"apiVersion": "[variables('computeApiVersion')]",
+			"name": "[concat(variables('vmNamePrefix'), 'node-scaleset')]",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+				"[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
+				"[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]"
+			],
+			"sku": {
+				"name": "[parameters('nodeSize')]",
+				"tier": "Standard",
+				"capacity": "[parameters('nodeCount')]"
+			},
+			"properties": {
+				"upgradePolicy": {
+					"mode": "Manual"
+				},
+				"virtualMachineProfile": {
+					"osProfile": {
+						"computerNamePrefix": "[concat(variables('vmNamePrefix'), 'node')]",
+						"adminUsername": "[parameters('username')]",
+						"customData": "[variables('nodeCloudConfig')]",
+						"linuxConfiguration": {
+							"disablePasswordAuthentication": "true",
+							"ssh": {
+								"publicKeys": [
+									{
+										"path": "[variables('sshKeyPath')]",
+										"keyData": "[parameters('sshPublicKeyData')]"
+									}
+								]
+							}
+						}
+					},
+					"storageProfile": {
+						"imageReference": {
+							"publisher": "[variables('osImagePublisher')]",
+							"offer": "[variables('osImageOffer')]",
+							"sku": "[variables('osImageSku')]",
+							"version": "latest"
+						},
+						"osDisk": {
+							"name": "[concat(variables('vmNamePrefix'), 'node-disk')]",
+							"vhdContainers": [
+								"[concat('http://',variables('storageAccountName'),'.blob.core.windows.net/',variables('storageContainerName'))]"
+							],
+							"caching": "ReadOnly",
+							"createOption": "FromImage"
+						}
+					},
+					"networkProfile": {
+						"networkInterfaceConfigurations": [
+							{
+								"name": "[concat(parameters('deploymentName'), '-node-nic')]",
+								"properties": {
+									"primary": "true",
+									"ipConfigurations": [
+										{
+											"name": "[concat(parameters('deploymentName'), '-node-ip')]",
+											"properties": {
+												"subnet": {
+													"id": "[concat(resourceId('Microsoft.Network/virtualNetworks/', variables('vnetName')), '/subnets/', variables('subnetName'))]"
+												},
+                                        						"loadBalancerBackendAddressPools": [
+                                            								{
+                                                							"id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('lbName'), '/backendAddressPools/loadBalancerBEAddressPool')]"
+                                            								}
+                                        							]
+											}
+										}
+									]
+								}
+							}
+						]
+					}
+				}
+			}
+		}
+	]
+}
+

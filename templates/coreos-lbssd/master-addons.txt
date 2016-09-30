@@ -1,0 +1,174 @@
+  - path: "/etc/kubernetes/addons/skydns-rc.yaml"
+    permissions: "0644"
+    owner: "root"
+    content: |
+      {
+        "kind": "ReplicationController", 
+        "spec": {
+          "replicas": 3, 
+          "template": {
+            "spec": {
+              "dnsPolicy": "Default", 
+              "containers": [
+                {
+                  "command": [
+                    "/usr/local/bin/etcd", 
+                    "-data-dir", 
+                    "/var/etcd/data", 
+                    "-listen-client-urls", 
+                    "http://127.0.0.1:2379,http://127.0.0.1:4001", 
+                    "-advertise-client-urls", 
+                    "http://127.0.0.1:2379,http://127.0.0.1:4001", 
+                    "-initial-cluster-token", 
+                    "skydns-etcd"
+                  ], 
+                  "image": "gcr.io/google_containers/etcd:{{ETCD_VERSION}}", 
+                  "volumeMounts": [
+                    {
+                      "mountPath": "/var/etcd/data", 
+                      "name": "etcd-storage"
+                    }
+                  ], 
+                  "name": "etcd", 
+                  "resources": {
+                    "limits": {
+                      "cpu": "100m", 
+                      "memory": "50Mi"
+                    }
+                  }
+                }, 
+                {
+                  "image": "gcr.io/google_containers/kube2sky:{{KUBE2SKY_VERSION}}", 
+                  "args": [
+                    "-domain=dns_Domain"
+                  ], 
+                  "name": "kube2sky", 
+                  "resources": {
+                    "limits": {
+                      "cpu": "100m", 
+                      "memory": "50Mi"
+                    }
+                  }
+                }, 
+                {
+                  "livenessProbe": {
+                    "initialDelaySeconds": 30, 
+                    "httpGet": {
+                      "path": "/healthz", 
+                      "scheme": "HTTP", 
+                      "port": 8080
+                    }, 
+                    "timeoutSeconds": 5
+                  }, 
+                  "name": "skydns", 
+                  "readinessProbe": {
+                    "initialDelaySeconds": 1, 
+                    "httpGet": {
+                      "path": "/healthz", 
+                      "scheme": "HTTP", 
+                      "port": 8080
+                    }, 
+                    "timeoutSeconds": 5
+                  }, 
+                  "image": "gcr.io/google_containers/skydns:{{SKYDNS_VERSION}}", 
+                  "args": [
+                    "-machines=http://127.0.0.1:4001", 
+                    "-addr=0.0.0.0:53", 
+                    "-ns-rotate=false", 
+                    "-domain=dns_Domain."
+                  ], 
+                  "ports": [
+                    {
+                      "protocol": "UDP", 
+                      "containerPort": 53, 
+                      "name": "dns"
+                    }, 
+                    {
+                      "protocol": "TCP", 
+                      "containerPort": 53, 
+                      "name": "dns-tcp"
+                    }
+                  ], 
+                  "resources": {
+                    "limits": {
+                      "cpu": "100m", 
+                      "memory": "50Mi"
+                    }
+                  }
+                }, 
+                {
+                  "image": "gcr.io/google_containers/exechealthz:1.0", 
+                  "args": [
+                    "-cmd=nslookup kubernetes.default.svc.dns_Domain 127.0.0.1 >/dev/null", 
+                    "-port=8080"
+                  ], 
+                  "name": "healthz", 
+                  "resources": {
+                    "limits": {
+                      "cpu": "10m", 
+                      "memory": "20Mi"
+                    }
+                  }, 
+                  "ports": [
+                    {
+                      "protocol": "TCP", 
+                      "containerPort": 8080
+                    }
+                  ]
+                }
+              ], 
+              "volumes": [
+                {
+                  "emptyDir": {}, 
+                  "name": "etcd-storage"
+                }
+              ]
+            }, 
+            "metadata": {
+              "labels": {
+                "k8s-app": "kube-dns", 
+                "version": "v9", 
+                "kubernetes.io/cluster-service": "true"
+              }
+            }
+          }, 
+          "selector": {
+            "k8s-app": "kube-dns", 
+            "version": "v9"
+          }
+        }, 
+        "apiVersion": "v1", 
+        "metadata": {
+          "labels": {
+            "k8s-app": "kube-dns", 
+            "version": "v9", 
+            "kubernetes.io/cluster-service": "true"
+          }, 
+          "namespace": "kube-system", 
+          "name": "kube-dns-v9"
+        }
+      }
+  - path: "/etc/kubernetes/addons/skydns-svc.yaml"
+    permissions: "0644"
+    owner: "root"
+    content: |
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: kube-dns
+        namespace: kube-system
+        labels:
+          k8s-app: kube-dns
+          kubernetes.io/cluster-service: "true"
+          kubernetes.io/name: "KubeDNS"
+      spec:
+        selector:
+          k8s-app: kube-dns
+        clusterIP:  {{DNS_SERVICE_IP}}
+        ports:
+        - name: dns
+          port: 53
+          protocol: UDP
+        - name: dns-tcp
+          port: 53
+          protocol: TCP
